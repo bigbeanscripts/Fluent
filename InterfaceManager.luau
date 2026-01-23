@@ -20,8 +20,8 @@ local InterfaceManager = {} do
 
 		InterfaceManager.Settings = {
 			Theme = self.Library.Theme or "Vynixu",
-			Acrylic = self.Library.UseAcrylic or false,
-			Transparency = self.Library.Transparency or false,
+			Acrylic = false,
+			Transparency = false,
 			MenuKeybind = self.Library.MinimizeKey or Enum.KeyCode.LeftShift
 		}
 	end
@@ -93,7 +93,7 @@ local InterfaceManager = {} do
 			section:AddToggle("InterfaceManager_AcrylicToggle", {
 				Title = "Acrylic",
 				Description = "The blurred background requires graphic quality 8+",
-				Default = Settings.Acrylic,
+				Default = false,
 				Callback = function(Value)
 					Library:ToggleAcrylic(Value)
                     Settings.Acrylic = Value
@@ -105,7 +105,7 @@ local InterfaceManager = {} do
 		section:AddToggle("InterfaceManager_TransparentToggle", {
 			Title = "Transparency",
 			Description = "Makes the interface transparent.",
-			Default = Settings.Transparency,
+			Default = false,
 			Callback = function(Value)
 				Library:ToggleTransparency(Value)
 				Settings.Transparency = Value
