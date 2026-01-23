@@ -10,7 +10,6 @@ local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOog
 local SearchIndex = {}
 local ObjectSet = {}
 
--- 2. Capture the Original Function cleanly
 local OriginalCreateWindow = Library.CreateWindow
 
 -- 3. Define the New Window Function
