@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- 1. Load the Base Fluent Library
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
 local SearchIndex = {}
@@ -12,9 +11,9 @@ local ObjectSet = {}
 
 local OriginalCreateWindow = Library.CreateWindow
 
--- 3. Define the New Window Function
 local function NewCreateWindow(self, options)
     local Window = OriginalCreateWindow(self, options)
+    
     local OriginalAddTab = Window.AddTab
     local CurrentTabIndex = 0
 
@@ -24,17 +23,19 @@ local function NewCreateWindow(self, options)
 
         local Tab = OriginalAddTab(self, tabOptions)
         
-        -- Hook Elements to Index them
+        local function GetTitle(arg1, arg2)
+            if type(arg2) == "table" and arg2.Title then return arg2.Title end
+            if type(arg1) == "table" and arg1.Title then return arg1.Title end
+            if type(arg1) == "string" then return arg1 end
+            return "No Title"
+        end
+
         local function HookElement(method, typeName)
             if Tab[method] then
                 local OriginalMethod = Tab[method]
                 Tab[method] = function(self, arg1, arg2, ...)
                     local Element = OriginalMethod(self, arg1, arg2, ...)
-                    
-                    local DisplayTitle = "Unknown"
-                    if type(arg1) == "string" then DisplayTitle = arg1
-                    elseif type(arg1) == "table" and arg1.Title then DisplayTitle = arg1.Title
-                    elseif type(arg2) == "table" and arg2.Title then DisplayTitle = arg2.Title end
+                    local DisplayTitle = GetTitle(arg1, arg2)
 
                     if not ObjectSet[Element] then
                         ObjectSet[Element] = true
@@ -46,6 +47,7 @@ local function NewCreateWindow(self, options)
                             Object = Element
                         })
                     end
+
                     return Element
                 end
             end
@@ -57,178 +59,237 @@ local function NewCreateWindow(self, options)
         HookElement("AddDropdown", "Dropdown")
         HookElement("AddInput", "Input")
         HookElement("AddParagraph", "Paragraph")
+        HookElement("AddSection", "Section")
         HookElement("AddKeybind", "Keybind")
 
         return Tab
     end
 
-    -- Inject Search UI
     task.spawn(function()
         task.wait(0.1)
         
         local RootFrame = Window.Root
         local TabHolder = Window.TabHolder
-        local Sidebar = TabHolder.Parent.Parent -- Adjust based on theme if needed
-
-        -- Search Button
-        local SearchTab = Instance.new("TextButton")
-        SearchTab.Name = "SearchTab"
-        SearchTab.Parent = TabHolder
-        SearchTab.LayoutOrder = -10
-        SearchTab.BackgroundTransparency = 1
-        SearchTab.Size = UDim2.new(1, 0, 0, 32)
-        SearchTab.Text = ""
+        local Sidebar = TabHolder.Parent.Parent
         
-        local Icon = Instance.new("ImageLabel")
-        Icon.Parent = SearchTab
-        Icon.Image = "rbxassetid://6031154871" -- Search Icon
-        Icon.BackgroundTransparency = 1
-        Icon.Position = UDim2.new(0, 10, 0.5, -8)
-        Icon.Size = UDim2.fromOffset(16, 16)
-        Icon.ImageColor3 = Color3.fromRGB(150, 150, 150)
+        local SpriteSheet = "rbxassetid://118976126805967"
+        local Icons = {
+            Search    = "rbxassetid://6031154871",
+            Misc      = "rbxassetid://7733954611"
+        }
 
-        local Label = Instance.new("TextLabel")
-        Label.Parent = SearchTab
-        Label.Text = "Search..."
-        Label.BackgroundTransparency = 1
-        Label.Position = UDim2.new(0, 35, 0, 0)
-        Label.Size = UDim2.new(1, -35, 1, 0)
-        Label.TextColor3 = Color3.fromRGB(150, 150, 150)
-        Label.Font = Enum.Font.Gotham
-        Label.TextSize = 14
-        Label.TextXAlignment = Enum.TextXAlignment.Left
+        local function Create(class, properties)
+            local inst = Instance.new(class)
+            for k, v in pairs(properties) do inst[k] = v end
+            return inst
+        end
 
-        -- Spotlight Overlay
-        local Overlay = Instance.new("Frame")
-        Overlay.Parent = RootFrame
-        Overlay.Size = UDim2.new(1, 0, 1, 0)
-        Overlay.BackgroundColor3 = Color3.new(0,0,0)
-        Overlay.BackgroundTransparency = 0.3
-        Overlay.Visible = false
-        Overlay.ZIndex = 100
+        TabHolder.CanvasSize = UDim2.new(0,0,0,0)
+        TabHolder.Parent.Position = UDim2.new(0, 12, 0, 60)
+        TabHolder.Parent.Size = UDim2.new(0, Window.TabWidth, 1, -115)
 
-        local SpotFrame = Instance.new("Frame")
-        SpotFrame.Parent = Overlay
-        SpotFrame.Size = UDim2.new(0.8, 0, 0, 40)
-        SpotFrame.Position = UDim2.new(0.5, 0, 0.2, 0)
-        SpotFrame.AnchorPoint = Vector2.new(0.5, 0)
-        SpotFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        local SearchTab = Create("TextButton", {
+            Name = "SearchTab",
+            Parent = TabHolder,
+            LayoutOrder = -10,
+            BackgroundColor3 = Sidebar.BackgroundColor3,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 32),
+            AutoButtonColor = false,
+            Text = ""
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SearchTab})
         
-        local UICorner = Instance.new("UICorner")
-        UICorner.CornerRadius = UDim.new(0, 6)
-        UICorner.Parent = SpotFrame
+        Create("ImageLabel", {
+            Parent = SearchTab,
+            BackgroundTransparency = 1,
+            Image = Icons.Search,
+            ImageColor3 = Color3.fromRGB(160, 160, 160),
+            Position = UDim2.new(0, 10, 0.5, -7),
+            Size = UDim2.fromOffset(16, 16)
+        })
 
-        local Input = Instance.new("TextBox")
-        Input.Parent = SpotFrame
-        Input.Size = UDim2.new(1, -10, 1, 0)
-        Input.Position = UDim2.new(0, 10, 0, 0)
-        Input.BackgroundTransparency = 1
-        Input.Text = ""
-        Input.PlaceholderText = "Type to search..."
-        Input.TextColor3 = Color3.new(1,1,1)
-        Input.Font = Enum.Font.Gotham
-        Input.TextSize = 14
-        Input.TextXAlignment = Enum.TextXAlignment.Left
+        Create("TextLabel", {
+            Parent = SearchTab,
+            BackgroundTransparency = 1,
+            Text = "Search...",
+            Font = Enum.Font.Gotham,
+            TextColor3 = Color3.fromRGB(160, 160, 160),
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Position = UDim2.new(0, 32, 0, 0),
+            Size = UDim2.new(1, -32, 1, 0)
+        })
 
-        local ResultsFrame = Instance.new("ScrollingFrame")
-        ResultsFrame.Parent = SpotFrame
-        ResultsFrame.Size = UDim2.new(1, 0, 0, 0) -- Auto resized
-        ResultsFrame.Position = UDim2.new(0, 0, 1, 5)
-        ResultsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        ResultsFrame.BorderSizePixel = 0
-        ResultsFrame.Visible = false
+        local SpotlightOverlay = Create("Frame", {
+            Name = "SpotlightOverlay",
+            Parent = RootFrame,
+            BackgroundColor3 = Color3.new(0,0,0),
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1,0,1,0),
+            ZIndex = 10000,
+            Visible = false
+        })
+
+        local SpotlightFrame = Create("Frame", {
+            Parent = SpotlightOverlay,
+            AnchorPoint = Vector2.new(0.5,0.5),
+            Position = UDim2.new(0.5,0,0.4,0),
+            Size = UDim2.new(0.85,0,0,45),
+            BackgroundColor3 = Color3.fromRGB(25,25,25),
+            BorderSizePixel = 0,
+            ClipsDescendants = true,
+            ZIndex = 10001
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0,8), Parent = SpotlightFrame})
         
-        local ResLayout = Instance.new("UIListLayout")
-        ResLayout.Parent = ResultsFrame
-        ResLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        local SpotInput = Create("TextBox", {
+            Parent = SpotlightFrame,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0,42,0,0),
+            Size = UDim2.new(1,-45,0,45),
+            Font = Enum.Font.GothamMedium,
+            Text = "",
+            PlaceholderText = "Search features...",
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ClearTextOnFocus = false,
+            TextColor3 = Color3.fromRGB(240,240,240),
+            ZIndex = 10002
+        })
+        
+        Create("ImageLabel", {
+            Parent = SpotlightFrame,
+            BackgroundTransparency = 1,
+            Image = Icons.Search,
+            Position = UDim2.new(0,12,0,11),
+            Size = UDim2.fromOffset(22,22),
+            ZIndex = 10002
+        })
 
-        -- Logic
-        SearchTab.MouseButton1Click:Connect(function()
-            Overlay.Visible = true
-            Input:CaptureFocus()
-        end)
+        local SpotResults = Create("ScrollingFrame", {
+            Parent = SpotlightFrame,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 0, 0, 47),
+            Size = UDim2.new(1, 0, 1, -47),
+            ScrollBarThickness = 3,
+            BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0,0,0,0),
+            ZIndex = 10002
+        })
+        Create("UIListLayout", {Parent = SpotResults, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2)})
+        Create("UIPadding", {Parent = SpotResults, PaddingLeft = UDim.new(0,5), PaddingRight = UDim.new(0,5), PaddingTop = UDim.new(0,5), PaddingBottom = UDim.new(0,5)})
 
-        Overlay.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                -- Close if clicked outside the box
-                local mousePos = input.Position
-                local fPos = SpotFrame.AbsolutePosition
-                local fSize = SpotFrame.AbsoluteSize
-                if mousePos.X < fPos.X or mousePos.X > fPos.X + fSize.X or mousePos.Y < fPos.Y or mousePos.Y > fPos.Y + fSize.Y + ResultsFrame.AbsoluteSize.Y then
-                    Overlay.Visible = false
-                end
-            end
-        end)
-
-        Input:GetPropertyChangedSignal("Text"):Connect(function()
-            local query = Input.Text:lower()
-            
-            -- Clear previous
-            for _, c in pairs(ResultsFrame:GetChildren()) do
-                if c:IsA("TextButton") then c:Destroy() end
-            end
-
-            if query == "" then
-                ResultsFrame.Visible = false
-                return 
+        local function UpdateSearchResults()
+            local query = SpotInput.Text:lower()
+            for _, v in pairs(SpotResults:GetChildren()) do
+                if v:IsA("GuiButton") then v:Destroy() end
             end
 
             local hits = 0
             for _, item in ipairs(SearchIndex) do
-                if item.Name:lower():find(query) then
+                if query == "" or item.Name:lower():find(query) then
                     hits = hits + 1
-                    local btn = Instance.new("TextButton")
-                    btn.Parent = ResultsFrame
-                    btn.Size = UDim2.new(1, 0, 0, 30)
-                    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-                    btn.Text = "  " .. item.Name .. " (" .. item.Tab .. ")"
-                    btn.TextColor3 = Color3.new(1,1,1)
-                    btn.Font = Enum.Font.Gotham
-                    btn.TextSize = 13
-                    btn.TextXAlignment = Enum.TextXAlignment.Left
                     
+                    local btn = Create("TextButton", {
+                        Parent = SpotResults,
+                        BackgroundColor3 = Sidebar.BackgroundColor3,
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, 0, 0, 32),
+                        Text = "",
+                        AutoButtonColor = false,
+                        ZIndex = 10005
+                    })
+                    Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = btn})
+
+                    Create("TextLabel", {
+                        Parent = btn,
+                        BackgroundTransparency = 1,
+                        Text = item.Name,
+                        TextColor3 = Color3.fromRGB(240, 240, 240),
+                        Font = Enum.Font.GothamMedium,
+                        TextSize = 13,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        Position = UDim2.new(0, 32, 0, 0),
+                        Size = UDim2.new(1, -32, 1, 0),
+                        ZIndex = 10006
+                    })
+                    
+                    local iconImg = Icons[item.Type] or Icons.Misc
+                    Create("ImageLabel", {
+                        Parent = btn,
+                        BackgroundTransparency = 1,
+                        Image = iconImg,
+                        ImageColor3 = Color3.fromRGB(240, 240, 240),
+                        Position = UDim2.new(0, 8, 0.5, -8),
+                        Size = UDim2.fromOffset(16, 16),
+                        ZIndex = 10006
+                    })
+
                     btn.MouseButton1Click:Connect(function()
-                        Overlay.Visible = false
-                        Window:SelectTab(item.TabIndex)
-                        
-                        -- Scroll and Flash
+                        pcall(function() Window:SelectTab(item.TabIndex) end)
+                        SpotlightOverlay.Visible = false
+                        SpotInput.Text = ""
+
                         if item.Object and item.Object.Frame then
                             local target = item.Object.Frame
-                            local scrollContainer = target.Parent.Parent -- Usually container -> scrollframe
+                            local scrollContainer = target:FindFirstAncestorWhichIsA("ScrollingFrame")
+                            if scrollContainer then
+                                local relY = target.AbsolutePosition.Y - scrollContainer.AbsolutePosition.Y
+                                scrollContainer.CanvasPosition = Vector2.new(0, scrollContainer.CanvasPosition.Y + relY - (scrollContainer.AbsoluteWindowSize.Y / 2) + (target.AbsoluteSize.Y / 2))
+                            end
                             
-                            if scrollContainer:IsA("ScrollingFrame") then
-                                scrollContainer.CanvasPosition = Vector2.new(0, target.AbsolutePosition.Y - scrollContainer.AbsolutePosition.Y + scrollContainer.CanvasPosition.Y)
-                            end
-
-                            -- Flash Effect
-                            local oldColor = target.BackgroundColor3
-                            for i = 1, 3 do
-                                target.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                                task.wait(0.1)
-                                target.BackgroundColor3 = oldColor
-                                task.wait(0.1)
-                            end
+                            local FlashStroke = Instance.new("UIStroke")
+                            FlashStroke.Color = Color3.fromRGB(255, 255, 255)
+                            FlashStroke.Thickness = 2
+                            FlashStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+                            FlashStroke.Parent = target
+                            
+                            task.spawn(function()
+                                for i = 1, 3 do
+                                    if not target or not target.Parent then break end
+                                    TweenService:Create(FlashStroke, TweenInfo.new(0.15), {Transparency = 0}):Play()
+                                    task.wait(0.2)
+                                    TweenService:Create(FlashStroke, TweenInfo.new(0.15), {Transparency = 1}):Play()
+                                    task.wait(0.2)
+                                end
+                                FlashStroke:Destroy()
+                            end)
                         end
                     end)
                 end
             end
+            
+            local totalHeight = math.min(hits * 34 + 52, 300)
+            if hits == 0 then totalHeight = 45 end
+            TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(0.85, 0, 0, totalHeight)}):Play()
+            SpotResults.CanvasSize = UDim2.new(0, 0, 0, hits * 34)
+        end
 
-            if hits > 0 then
-                ResultsFrame.Visible = true
-                ResultsFrame.Size = UDim2.new(1, 0, 0, math.min(hits * 30, 200))
-                ResultsFrame.CanvasSize = UDim2.new(0, 0, 0, hits * 30)
-            else
-                ResultsFrame.Visible = false
-            end
+        SpotInput:GetPropertyChangedSignal("Text"):Connect(UpdateSearchResults)
+
+        SearchTab.MouseButton1Click:Connect(function()
+            SpotlightOverlay.Visible = true
+            SpotInput:CaptureFocus()
+            UpdateSearchResults()
+        end)
+        
+        Create("TextButton", {
+            Parent = SpotlightOverlay,
+            Size = UDim2.new(1,0,1,0),
+            BackgroundTransparency = 1,
+            Text = "",
+            ZIndex = 999
+        }).MouseButton1Click:Connect(function()
+            SpotlightOverlay.Visible = false
         end)
     end)
 
     return Window
 end
 
--- 4. Apply the Override to BOTH .CreateWindow and .Window
 Library.CreateWindow = NewCreateWindow
-Library.Window = NewCreateWindow -- THIS IS THE CRITICAL FIX FOR TAP SIMULATOR
+Library.Window = NewCreateWindow
 
--- 5. Return the modified library
 return Library
