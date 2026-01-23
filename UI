@@ -667,3 +667,5 @@ function CustomizeLibrary(Window)
         SpotlightOverlay.Visible = false
     end)
 end
+
+return Library
