@@ -51,31 +51,8 @@ local function HookWindow(Window)
 
         local Tab = OriginalAddTab(self, tabOptions)
 
-        local function ApplyAliases(Container)
-            if not Container or Container.__Aliased then return Container end
-            Container.__Aliased = true
-        
-            Container.Toggle = Container.AddToggle
-            Container.Dropdown = Container.AddDropdown
-            Container.Button = Container.AddButton
-            Container.Paragraph = Container.AddParagraph
-            Container.Slider = Container.AddSlider
-            Container.Input = Container.AddInput
-            Container.Section = Container.AddSection
-            Container.Keybind = Container.AddKeybind
-        
-            if Container.AddSection and not Container.__SectionHooked then
-                Container.__SectionHooked = true
-                local OldAddSection = Container.AddSection
-                Container.AddSection = function(self, ...)
-                    local Sec = OldAddSection(self, ...)
-                    ApplyAliases(Sec)
-                    return Sec
-                end
-            end
-        
-            return Container
-        end
+       ApplyAliases(Tab)
+
 
         local TabName = tabOptions.Title or "Unknown"
         local CurrentSection = TabName
@@ -94,15 +71,9 @@ local function HookWindow(Window)
                     local Element = OriginalMethod(self, arg1, arg2, ...)
 
                     if typeName == "Section" and Element then
-                        Element.Toggle = Element.AddToggle
-                        Element.Dropdown = Element.AddDropdown
-                        Element.Button = Element.AddButton
-                        Element.Paragraph = Element.AddParagraph
-                        Element.Slider = Element.AddSlider
-                        Element.Input = Element.AddInput
-                        Element.Section = Element.AddSection
-                        Element.Keybind = Element.AddKeybind
+                        ApplyAliases(Element)
                     end
+
 
                     local DisplayTitle = GetTitle(arg1, arg2)
 
