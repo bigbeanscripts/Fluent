@@ -78,6 +78,8 @@ Library.CreateWindow = function(self, options)
     return Window
 end
 
+Library.Window = Library.CreateWindow
+
 local SpriteSheet = "rbxassetid://118976126805967"
 local Icons = {
     Search    = "rbxassetid://6031154871",
