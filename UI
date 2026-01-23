@@ -8,12 +8,60 @@ local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOog
 local SearchIndex = {}
 local ObjectSet = {}
 
-local OriginalCreateWindow = Library.CreateWindow
-local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
+local function GetTitle(arg1, arg2)
+    if type(arg2) == "table" and arg2.Title then return arg2.Title end
+    if type(arg1) == "table" and arg1.Title then return arg1.Title end
+    if type(arg1) == "string" then return arg1 end
+    return "No Title"
+end
+
+local function IndexElement(container, name, typeName, element)
+    if not element or ObjectSet[element] then return end
+    ObjectSet[element] = true
+    table.insert(SearchIndex, {
+        Name = name,
+        Type = typeName,
+        Tab = container.__TabName or "Unknown",
+        Section = container.__SectionName or (container.__TabName or "Unknown"),
+        TabIndex = container.__TabIndex or 1,
+        Object = element
+    })
+end
 
 local function ApplyAliases(Container)
     if not Container or Container.__Aliased then return Container end
     Container.__Aliased = true
+
+    local function WrapAdd(methodName, typeName)
+        if not Container[methodName] or Container["__Wrapped_" .. methodName] then return end
+        Container["__Wrapped_" .. methodName] = true
+        local Old = Container[methodName]
+        Container[methodName] = function(self, a1, a2, ...)
+            local el = Old(self, a1, a2, ...)
+            local title = GetTitle(a1, a2)
+
+            if typeName == "Section" and el then
+                el.__TabName = self.__TabName
+                el.__TabIndex = self.__TabIndex
+                el.__SectionName = title
+                ApplyAliases(el)
+                IndexElement(el, title, "Section", el)
+            else
+                IndexElement(self, title, typeName, el)
+            end
+
+            return el
+        end
+    end
+
+    WrapAdd("AddToggle", "Toggle")
+    WrapAdd("AddDropdown", "Dropdown")
+    WrapAdd("AddButton", "Button")
+    WrapAdd("AddParagraph", "Paragraph")
+    WrapAdd("AddSlider", "Slider")
+    WrapAdd("AddInput", "Input")
+    WrapAdd("AddKeybind", "Keybind")
+    WrapAdd("AddSection", "Section")
 
     if Container.AddToggle then Container.Toggle = Container.AddToggle end
     if Container.AddDropdown then Container.Dropdown = Container.AddDropdown end
@@ -22,17 +70,7 @@ local function ApplyAliases(Container)
     if Container.AddSlider then Container.Slider = Container.AddSlider end
     if Container.AddInput then Container.Input = Container.AddInput end
     if Container.AddKeybind then Container.Keybind = Container.AddKeybind end
-
-    if Container.AddSection and not Container.__SectionHooked then
-        Container.__SectionHooked = true
-        local OldAddSection = Container.AddSection
-
-        Container.AddSection = function(self, ...)
-            local Sec = OldAddSection(self, ...)
-            ApplyAliases(Sec)
-            return Sec
-        end
-
+    if Container.AddSection then
         Container.Section = function(self, ...)
             return self:AddSection(...)
         end
@@ -41,6 +79,8 @@ local function ApplyAliases(Container)
     return Container
 end
 
+local OriginalCreateWindow = Library.CreateWindow
+local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
 
 local function HookWindow(Window)
     if not Window or Window.__SearchHooked then return Window end
@@ -54,63 +94,10 @@ local function HookWindow(Window)
         local ThisTabIndex = CurrentTabIndex
 
         local Tab = OriginalAddTab(self, tabOptions)
-
-       ApplyAliases(Tab)
-
-
-        local TabName = tabOptions.Title or "Unknown"
-        local CurrentSection = TabName
-
-        local function GetTitle(arg1, arg2)
-            if type(arg2) == "table" and arg2.Title then return arg2.Title end
-            if type(arg1) == "table" and arg1.Title then return arg1.Title end
-            if type(arg1) == "string" then return arg1 end
-            return "No Title"
-        end
-
-        local function HookElement(method, typeName)
-            if Tab[method] then
-                local OriginalMethod = Tab[method]
-                Tab[method] = function(self, arg1, arg2, ...)
-                    local Element = OriginalMethod(self, arg1, arg2, ...)
-
-                    if typeName == "Section" and Element then
-                        ApplyAliases(Element)
-                    end
-
-
-                    local DisplayTitle = GetTitle(arg1, arg2)
-
-                    if typeName == "Section" then
-                        CurrentSection = DisplayTitle
-                    end
-
-                    if not ObjectSet[Element] then
-                        ObjectSet[Element] = true
-                        table.insert(SearchIndex, {
-                            Name = DisplayTitle,
-                            Type = typeName,
-                            Tab = TabName,
-                            Section = CurrentSection,
-                            TabIndex = ThisTabIndex,
-                            Object = Element
-                        })
-                    end
-
-                    return Element
-                end
-            end
-        end
-        
-
-        HookElement("AddButton", "Button")
-        HookElement("AddToggle", "Toggle")
-        HookElement("AddSlider", "Slider")
-        HookElement("AddDropdown", "Dropdown")
-        HookElement("AddInput", "Input")
-        HookElement("AddParagraph", "Paragraph")
-        HookElement("AddSection", "Section")
-        HookElement("AddKeybind", "Keybind")
+        Tab.__TabName = tabOptions.Title or "Unknown"
+        Tab.__TabIndex = ThisTabIndex
+        Tab.__SectionName = Tab.__TabName
+        ApplyAliases(Tab)
 
         return Tab
     end
@@ -416,7 +403,6 @@ function CustomizeLibrary(Window)
 
     local function ScrollToTargetCentered(target)
         if not target then return end
-
         local sf = target:FindFirstAncestorWhichIsA("ScrollingFrame")
         if not sf then return end
 
@@ -426,20 +412,16 @@ function CustomizeLibrary(Window)
 
         local viewH = sf.AbsoluteWindowSize.Y
         local targetH = target.AbsoluteSize.Y
-
         local relY = (target.AbsolutePosition.Y - sf.AbsolutePosition.Y) + sf.CanvasPosition.Y - padTop
         local desiredY = relY - (viewH * 0.5) + (targetH * 0.5)
 
         local maxScroll = sf.AbsoluteCanvasSize.Y - sf.AbsoluteWindowSize.Y
         desiredY = math.clamp(desiredY, 0, math.max(0, maxScroll))
-
         sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
 
         local FlashColor = Color3.fromRGB(255, 255, 255)
         local TextLabel = target:FindFirstChildWhichIsA("TextLabel", true)
-        if TextLabel then
-            FlashColor = TextLabel.TextColor3
-        end
+        if TextLabel then FlashColor = TextLabel.TextColor3 end
 
         local FlashStroke = Instance.new("UIStroke")
         FlashStroke.Name = "SearchFlashStroke"
@@ -450,31 +432,24 @@ function CustomizeLibrary(Window)
         FlashStroke.Parent = target
 
         task.spawn(function()
-            for i = 1, 3 do
+            for _ = 1, 3 do
                 if not target or not target.Parent then break end
-                
                 local t1 = TweenService:Create(FlashStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
                 t1:Play()
                 t1.Completed:Wait()
-
                 task.wait(0.05)
-
                 local t2 = TweenService:Create(FlashStroke, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1})
                 t2:Play()
                 t2.Completed:Wait()
-                
                 task.wait(0.05)
             end
-            
             if FlashStroke then FlashStroke:Destroy() end
         end)
     end
 
     local function ScrollToElement(itemName, frameObj)
         local target = frameObj
-        if not target then
-            target = FindVisualTargetByText(RootFrame, itemName)
-        end
+        if not target then target = FindVisualTargetByText(RootFrame, itemName) end
         ScrollToTargetCentered(target)
     end
 
@@ -483,59 +458,56 @@ function CustomizeLibrary(Window)
         for _, v in pairs(RootFrame:GetDescendants()) do
             if v.Name == "ContainerHolder" then ContainerHolder = v break end
         end
+        if not ContainerHolder then return end
 
-        if ContainerHolder then
-            for _, page in pairs(ContainerHolder:GetChildren()) do
-                if page:IsA("ScrollingFrame") then
-                    local tabName = "Unknown"
-                    local tabIndex = 1
-                    for idx, btn in pairs(TabHolder:GetChildren()) do
-                        if btn:IsA("GuiButton") and btn.LayoutOrder == page.LayoutOrder then
-                            local tl = btn:FindFirstChildOfClass("TextLabel")
-                            if tl then tabName = tl.Text end
-                            tabIndex = idx
-                            break
-                        end
+        for _, page in pairs(ContainerHolder:GetChildren()) do
+            if page:IsA("ScrollingFrame") then
+                local tabName = "Unknown"
+                local tabIndex = 1
+                for idx, btn in pairs(TabHolder:GetChildren()) do
+                    if btn:IsA("GuiButton") and btn.LayoutOrder == page.LayoutOrder then
+                        local tl = btn:FindFirstChildOfClass("TextLabel")
+                        if tl then tabName = tl.Text end
+                        tabIndex = idx
+                        break
                     end
+                end
 
-                    local currentSection = tabName
+                local currentSection = tabName
 
-                    for _, element in pairs(page:GetChildren()) do
-                        if element:IsA("Frame") and element.Visible then
-                            if not ObjectSet[element] then
-                                local elType = "Misc"
-                                local title = "Unknown"
+                for _, element in pairs(page:GetChildren()) do
+                    if element:IsA("Frame") and element.Visible and not ObjectSet[element] then
+                        local elType = "Misc"
+                        local title = "Unknown"
 
-                                local possibleTitle = element:FindFirstChild("Title") or element:FindFirstChildOfClass("TextLabel")
-                                if possibleTitle and possibleTitle:IsA("TextLabel") then
-                                    title = possibleTitle.Text
-                                end
+                        local possibleTitle = element:FindFirstChild("Title") or element:FindFirstChildOfClass("TextLabel")
+                        if possibleTitle and possibleTitle:IsA("TextLabel") then
+                            title = possibleTitle.Text
+                        end
 
-                                if title ~= "Unknown" then
-                                    if element:FindFirstChild("Title") and element.Title.TextXAlignment == Enum.TextXAlignment.Center then
-                                        elType = "Section"
-                                        currentSection = title
-                                    elseif element:FindFirstChild("Box") then elType = "Input"
-                                    elseif element:FindFirstChild("Slider") then elType = "Slider"
-                                    elseif element:FindFirstChild("Dropdown") then elType = "Dropdown"
-                                    elseif element:FindFirstChild("Check") or element:FindFirstChild("Toggle") then elType = "Toggle"
-                                    elseif element:FindFirstChild("Container") then elType = "Button"
-                                    elseif element.Name == "Section" then elType = "Section"; currentSection = title
-                                    elseif element.Name == "Paragraph" then elType = "Paragraph"
-                                    end
-
-                                    ObjectSet[element] = true
-                                    table.insert(SearchIndex, {
-                                        Name = title,
-                                        Type = elType,
-                                        Tab = tabName,
-                                        Section = currentSection,
-                                        TabIndex = tabIndex,
-                                        Object = nil,
-                                        Frame = element
-                                    })
-                                end
+                        if title ~= "Unknown" then
+                            if element:FindFirstChild("Title") and element.Title.TextXAlignment == Enum.TextXAlignment.Center then
+                                elType = "Section"
+                                currentSection = title
+                            elseif element:FindFirstChild("Box") then elType = "Input"
+                            elseif element:FindFirstChild("Slider") then elType = "Slider"
+                            elseif element:FindFirstChild("Dropdown") then elType = "Dropdown"
+                            elseif element:FindFirstChild("Check") or element:FindFirstChild("Toggle") then elType = "Toggle"
+                            elseif element:FindFirstChild("Container") then elType = "Button"
+                            elseif element.Name == "Section" then elType = "Section"; currentSection = title
+                            elseif element.Name == "Paragraph" then elType = "Paragraph"
                             end
+
+                            ObjectSet[element] = true
+                            table.insert(SearchIndex, {
+                                Name = title,
+                                Type = elType,
+                                Tab = tabName,
+                                Section = currentSection,
+                                TabIndex = tabIndex,
+                                Object = nil,
+                                Frame = element
+                            })
                         end
                     end
                 end
@@ -558,9 +530,8 @@ function CustomizeLibrary(Window)
         for _, item in ipairs(SearchIndex) do
             if query == "" or item.Name:lower():find(query) then
                 hits += 1
-
                 local iconData = Icons[item.Type] or Icons.Misc
-                
+
                 local btn = Create("TextButton", {
                     Parent = SpotResults,
                     BackgroundColor3 = Sidebar.BackgroundColor3,
@@ -593,7 +564,7 @@ function CustomizeLibrary(Window)
                     iconImage = iconData
                 end
 
-                local Icon = Create("ImageLabel", {
+                Create("ImageLabel", {
                     Name = "Icon",
                     Parent = btn,
                     BackgroundTransparency = 1,
