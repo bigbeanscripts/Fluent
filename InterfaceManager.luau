@@ -4,10 +4,10 @@ local InterfaceManager = {} do
 	InterfaceManager.Folder = "FluentRenewedSettings"
 
     InterfaceManager.Settings = {
-        Theme = "Dark",
-        Acrylic = true,
-        Transparency = true,
-        MenuKeybind = Enum.KeyCode.RightControl
+        Theme = "Vyxinu",
+        Acrylic = false,
+        Transparency = false,
+        MenuKeybind = Enum.KeyCode.LeftShift
     }
 
     function InterfaceManager:SetFolder(folder)
