@@ -10,7 +10,8 @@ local SearchIndex = {}
 local ObjectSet = {}
 local OriginalCreateWindow = Library.CreateWindow
 
-Library.Window = function(self, options)
+-- 1. We override the main function 'CreateWindow'
+Library.CreateWindow = function(self, options)
     local Window = OriginalCreateWindow(self, options)
     local OriginalAddTab = Window.AddTab
     local CurrentTabIndex = 0
@@ -77,6 +78,10 @@ Library.Window = function(self, options)
 
     return Window
 end
+
+-- 2. IMPORTANT: We force 'Window' to use the function we just created above.
+-- This ensures it works regardless of whether the script uses :Window or :CreateWindow
+Library.Window = Library.CreateWindow
 
 local SpriteSheet = "rbxassetid://118976126805967"
 local Icons = {
