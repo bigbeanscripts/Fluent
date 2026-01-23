@@ -4,7 +4,7 @@ local InterfaceManager = {} do
 	InterfaceManager.Folder = "FluentRenewedSettings"
 
     InterfaceManager.Settings = {
-        Theme = "Vyxinu",
+        Theme = "Vynixu",
         Acrylic = false,
         Transparency = false,
         MenuKeybind = Enum.KeyCode.LeftShift
