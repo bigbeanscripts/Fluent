@@ -10,7 +10,7 @@ local SearchIndex = {}
 local ObjectSet = {}
 local OriginalCreateWindow = Library.CreateWindow
 
-Library.CreateWindow = function(self, options)
+Library.Window = function(self, options)
     local Window = OriginalCreateWindow(self, options)
     local OriginalAddTab = Window.AddTab
     local CurrentTabIndex = 0
@@ -77,8 +77,6 @@ Library.CreateWindow = function(self, options)
 
     return Window
 end
-
-Library.Window = Library.CreateWindow
 
 local SpriteSheet = "rbxassetid://118976126805967"
 local Icons = {
