@@ -5,13 +5,16 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
-
 local SearchIndex = {}
 local ObjectSet = {}
-local OriginalCreateWindow = Library.CreateWindow
 
-Library.CreateWindow = function(self, options)
-    local Window = OriginalCreateWindow(self, options)
+local OriginalCreateWindow = Library.CreateWindow
+local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
+
+local function HookWindow(Window)
+    if not Window or Window.__SearchHooked then return Window end
+    Window.__SearchHooked = true
+
     local OriginalAddTab = Window.AddTab
     local CurrentTabIndex = 0
 
@@ -76,6 +79,20 @@ Library.CreateWindow = function(self, options)
     end)
 
     return Window
+end
+
+Library.CreateWindow = function(self, options)
+    local Window = HookWindow(OriginalCreateWindow(self, options))
+    Library.CurrentWindow = Window
+    return Window
+end
+
+if OriginalWindowCtor then
+    Library.Window = function(self, options)
+        local Window = HookWindow(OriginalWindowCtor(self, options))
+        Library.CurrentWindow = Window
+        return Window
+    end
 end
 
 local SpriteSheet = "rbxassetid://118976126805967"
