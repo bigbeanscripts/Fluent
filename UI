@@ -10,7 +10,6 @@ local SearchIndex = {}
 local ObjectSet = {}
 local OriginalCreateWindow = Library.CreateWindow
 
--- 1. We override the main function 'CreateWindow'
 Library.CreateWindow = function(self, options)
     local Window = OriginalCreateWindow(self, options)
     local OriginalAddTab = Window.AddTab
