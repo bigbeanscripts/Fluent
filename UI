@@ -1,74 +1,16 @@
---[[ 
-    Fluent UI Library Wrapper with Search/Spotlight
-    Updated for compatibility with: State.Window = Library:Window(...)
-]]
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- 1. Load the actual Fluent Library
-local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+Library = loadstring(game:HttpGet("https://github.com/bigbeanscripts/Fluent-Renewed/releases/download/v19.05.24/Fluent.luau"))()
 
 local SearchIndex = {}
 local ObjectSet = {}
 local OriginalCreateWindow = Library.CreateWindow
 
--- 2. Define the Indexing Logic
-local function GetTitle(arg1, arg2)
-    if type(arg2) == "table" and arg2.Title then return arg2.Title end
-    if type(arg1) == "table" and arg1.Title then return arg1.Title end
-    if type(arg1) == "string" then return arg1 end
-    return "No Title"
-end
-
--- Helper to wrap containers (Tabs AND Sections) so items inside them are indexed
-local function WrapContainer(container, tabName, sectionName, tabIndex)
-    local function HookElement(method, typeName)
-        if container[method] then
-            local OriginalMethod = container[method]
-            
-            container[method] = function(self, arg1, arg2, ...)
-                local Element = OriginalMethod(self, arg1, arg2, ...)
-                local DisplayTitle = GetTitle(arg1, arg2)
-                
-                -- If we just created a Section, we must wrap IT so items inside it are indexed
-                if typeName == "Section" then
-                    WrapContainer(Element, tabName, DisplayTitle, tabIndex)
-                end
-
-                if not ObjectSet[Element] then
-                    ObjectSet[Element] = true
-                    table.insert(SearchIndex, {
-                        Name = DisplayTitle,
-                        Type = typeName,
-                        Tab = tabName,
-                        Section = sectionName or ((typeName == "Section") and DisplayTitle) or tabName,
-                        TabIndex = tabIndex,
-                        Object = Element
-                    })
-                end
-
-                return Element
-            end
-        end
-    end
-
-    HookElement("AddButton", "Button")
-    HookElement("AddToggle", "Toggle")
-    HookElement("AddSlider", "Slider")
-    HookElement("AddDropdown", "Dropdown")
-    HookElement("AddInput", "Input")
-    HookElement("AddParagraph", "Paragraph")
-    HookElement("AddSection", "Section")
-    HookElement("AddKeybind", "Keybind")
-    HookElement("AddColorpicker", "Colorpicker")
-end
-
--- 3. Override Window Creation
-local function CustomCreateWindow(self, options)
+Library.CreateWindow = function(self, options)
     local Window = OriginalCreateWindow(self, options)
     local OriginalAddTab = Window.AddTab
     local CurrentTabIndex = 0
@@ -76,16 +18,58 @@ local function CustomCreateWindow(self, options)
     Window.AddTab = function(self, tabOptions)
         CurrentTabIndex += 1
         local ThisTabIndex = CurrentTabIndex
+
         local Tab = OriginalAddTab(self, tabOptions)
         local TabName = tabOptions.Title or "Unknown"
+        local CurrentSection = TabName
 
-        -- Wrap the Tab so direct children are indexed
-        WrapContainer(Tab, TabName, nil, ThisTabIndex)
+        local function GetTitle(arg1, arg2)
+            if type(arg2) == "table" and arg2.Title then return arg2.Title end
+            if type(arg1) == "table" and arg1.Title then return arg1.Title end
+            if type(arg1) == "string" then return arg1 end
+            return "No Title"
+        end
+
+        local function HookElement(method, typeName)
+            if Tab[method] then
+                local OriginalMethod = Tab[method]
+                Tab[method] = function(self, arg1, arg2, ...)
+                    local Element = OriginalMethod(self, arg1, arg2, ...)
+                    local DisplayTitle = GetTitle(arg1, arg2)
+
+                    if typeName == "Section" then
+                        CurrentSection = DisplayTitle
+                    end
+
+                    if not ObjectSet[Element] then
+                        ObjectSet[Element] = true
+                        table.insert(SearchIndex, {
+                            Name = DisplayTitle,
+                            Type = typeName,
+                            Tab = TabName,
+                            Section = CurrentSection,
+                            TabIndex = ThisTabIndex,
+                            Object = Element
+                        })
+                    end
+
+                    return Element
+                end
+            end
+        end
+
+        HookElement("AddButton", "Button")
+        HookElement("AddToggle", "Toggle")
+        HookElement("AddSlider", "Slider")
+        HookElement("AddDropdown", "Dropdown")
+        HookElement("AddInput", "Input")
+        HookElement("AddParagraph", "Paragraph")
+        HookElement("AddSection", "Section")
+        HookElement("AddKeybind", "Keybind")
 
         return Tab
     end
 
-    -- Inject the Search GUI after a slight delay to ensure UI is ready
     task.spawn(function()
         task.wait(0.1)
         CustomizeLibrary(Window)
@@ -93,14 +77,6 @@ local function CustomCreateWindow(self, options)
 
     return Window
 end
-
--- 4. Apply the Override to BOTH methods (CreateWindow and Window alias)
-Library.CreateWindow = CustomCreateWindow
-Library.Window = CustomCreateWindow -- This fixes "State.Window = Library:Window" compatibility
-
---------------------------------------------------------------------------------
--- GUI Customization & Search Logic (Same visual style as before)
---------------------------------------------------------------------------------
 
 local SpriteSheet = "rbxassetid://118976126805967"
 local Icons = {
@@ -443,7 +419,6 @@ function CustomizeLibrary(Window)
         ScrollToTargetCentered(target)
     end
 
-    -- Deep indexing as a fallback for pre-existing or dynamically added elements
     local function DeepIndexElements()
         local ContainerHolder = nil
         for _, v in pairs(RootFrame:GetDescendants()) do
