@@ -11,6 +11,33 @@ local ObjectSet = {}
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
 
+local function ApplyAliases(Container)
+    if not Container or Container.__Aliased then return Container end
+    Container.__Aliased = true
+
+    Container.Toggle = Container.AddToggle
+    Container.Dropdown = Container.AddDropdown
+    Container.Button = Container.AddButton
+    Container.Paragraph = Container.AddParagraph
+    Container.Slider = Container.AddSlider
+    Container.Input = Container.AddInput
+    Container.Section = Container.AddSection
+    Container.Keybind = Container.AddKeybind
+
+    if Container.AddSection and not Container.__SectionHooked then
+        Container.__SectionHooked = true
+        local OldAddSection = Container.AddSection
+        Container.AddSection = function(self, ...)
+            local Sec = OldAddSection(self, ...)
+            ApplyAliases(Sec)
+            return Sec
+        end
+    end
+
+    return Container
+end
+
+
 local function HookWindow(Window)
     if not Window or Window.__SearchHooked then return Window end
     Window.__SearchHooked = true
@@ -23,6 +50,33 @@ local function HookWindow(Window)
         local ThisTabIndex = CurrentTabIndex
 
         local Tab = OriginalAddTab(self, tabOptions)
+
+        local function ApplyAliases(Container)
+            if not Container or Container.__Aliased then return Container end
+            Container.__Aliased = true
+        
+            Container.Toggle = Container.AddToggle
+            Container.Dropdown = Container.AddDropdown
+            Container.Button = Container.AddButton
+            Container.Paragraph = Container.AddParagraph
+            Container.Slider = Container.AddSlider
+            Container.Input = Container.AddInput
+            Container.Section = Container.AddSection
+            Container.Keybind = Container.AddKeybind
+        
+            if Container.AddSection and not Container.__SectionHooked then
+                Container.__SectionHooked = true
+                local OldAddSection = Container.AddSection
+                Container.AddSection = function(self, ...)
+                    local Sec = OldAddSection(self, ...)
+                    ApplyAliases(Sec)
+                    return Sec
+                end
+            end
+        
+            return Container
+        end
+
         local TabName = tabOptions.Title or "Unknown"
         local CurrentSection = TabName
 
