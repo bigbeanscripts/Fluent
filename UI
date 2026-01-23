@@ -15,27 +15,26 @@ local function ApplyAliases(Container)
     if not Container or Container.__Aliased then return Container end
     Container.__Aliased = true
 
-    Container.Toggle = Container.AddToggle
-    Container.Dropdown = Container.AddDropdown
-    Container.Button = Container.AddButton
-    Container.Paragraph = Container.AddParagraph
-    Container.Slider = Container.AddSlider
-    Container.Input = Container.AddInput
-    Container.Section = function(self, ...)
-        local Sec = self:AddSection(...)
-        ApplyAliases(Sec)
-        return Sec
-    end
-
-    Container.Keybind = Container.AddKeybind
+    if Container.AddToggle then Container.Toggle = Container.AddToggle end
+    if Container.AddDropdown then Container.Dropdown = Container.AddDropdown end
+    if Container.AddButton then Container.Button = Container.AddButton end
+    if Container.AddParagraph then Container.Paragraph = Container.AddParagraph end
+    if Container.AddSlider then Container.Slider = Container.AddSlider end
+    if Container.AddInput then Container.Input = Container.AddInput end
+    if Container.AddKeybind then Container.Keybind = Container.AddKeybind end
 
     if Container.AddSection and not Container.__SectionHooked then
         Container.__SectionHooked = true
         local OldAddSection = Container.AddSection
+
         Container.AddSection = function(self, ...)
             local Sec = OldAddSection(self, ...)
             ApplyAliases(Sec)
             return Sec
+        end
+
+        Container.Section = function(self, ...)
+            return self:AddSection(...)
         end
     end
 
