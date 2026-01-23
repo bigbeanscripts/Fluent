@@ -60,15 +60,6 @@ local function HookWindow(Window)
                 end
             end
         end
-
-        Tab.Toggle = Tab.AddToggle
-        Tab.Dropdown = Tab.AddDropdown
-        Tab.Button = Tab.AddButton
-        Tab.Paragraph = Tab.AddParagraph
-        Tab.Slider = Tab.AddSlider
-        Tab.Input = Tab.AddInput
-        Tab.Section = Tab.AddSection
-        Tab.Keybind = Tab.AddKeybind
         
 
         HookElement("AddButton", "Button")
@@ -79,6 +70,16 @@ local function HookWindow(Window)
         HookElement("AddParagraph", "Paragraph")
         HookElement("AddSection", "Section")
         HookElement("AddKeybind", "Keybind")
+
+
+        Tab.Toggle = Tab.AddToggle
+        Tab.Dropdown = Tab.AddDropdown
+        Tab.Button = Tab.AddButton
+        Tab.Paragraph = Tab.AddParagraph
+        Tab.Slider = Tab.AddSlider
+        Tab.Input = Tab.AddInput
+        Tab.Section = Tab.AddSection
+        Tab.Keybind = Tab.AddKeybind
 
         return Tab
     end
