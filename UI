@@ -372,10 +372,13 @@ function CustomizeLibrary(Window)
 			local TargetTextColor = Color3.fromRGB(240, 240, 240)
 			local TargetBgColor = Color3.fromRGB(30, 30, 30)
 
-			if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
+			if SettingsLabelRef then
+				TargetTextColor = SettingsLabelRef.TextColor3
+				-- EDITED: Use Text Color for the Flash
+				CurrentFlashColor = TargetTextColor 
+			end
 			if SettingsButtonRef then
 				TargetBgColor = SettingsButtonRef.BackgroundColor3
-				CurrentFlashColor = TargetBgColor
 			end
 
 			local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
@@ -495,10 +498,18 @@ function CustomizeLibrary(Window)
 		local absPos = target.AbsolutePosition
 		local absSize = target.AbsoluteSize
 
-		overlay.Position = UDim2.fromOffset(absPos.X - rootAbs.X, absPos.Y - rootAbs.Y)
-		overlay.Size = UDim2.fromOffset(absSize.X, absSize.Y)
+		-- EDITED: Added padding so the stroke is around the element properly
+		local flashPadding = 3
+		
+		overlay.Position = UDim2.fromOffset((absPos.X - rootAbs.X) - flashPadding, (absPos.Y - rootAbs.Y) - flashPadding)
+		overlay.Size = UDim2.fromOffset(absSize.X + (flashPadding * 2), absSize.Y + (flashPadding * 2))
 
-		Instance.new("UICorner", overlay).CornerRadius = UDim.new(0, 6)
+		-- EDITED: Try to match the corner radius of the target, otherwise default
+		local targetCorner = target:FindFirstChildOfClass("UICorner")
+		local radius = UDim.new(0, 6)
+		if targetCorner then radius = targetCorner.CornerRadius end
+
+		Instance.new("UICorner", overlay).CornerRadius = radius
 
 		local stroke = Instance.new("UIStroke")
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
