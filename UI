@@ -21,7 +21,12 @@ local function ApplyAliases(Container)
     Container.Paragraph = Container.AddParagraph
     Container.Slider = Container.AddSlider
     Container.Input = Container.AddInput
-    Container.Section = Container.AddSection
+    Container.Section = function(self, ...)
+        local Sec = self:AddSection(...)
+        ApplyAliases(Sec)
+        return Sec
+    end
+
     Container.Keybind = Container.AddKeybind
 
     if Container.AddSection and not Container.__SectionHooked then
@@ -107,16 +112,6 @@ local function HookWindow(Window)
         HookElement("AddParagraph", "Paragraph")
         HookElement("AddSection", "Section")
         HookElement("AddKeybind", "Keybind")
-
-
-        Tab.Toggle = Tab.AddToggle
-        Tab.Dropdown = Tab.AddDropdown
-        Tab.Button = Tab.AddButton
-        Tab.Paragraph = Tab.AddParagraph
-        Tab.Slider = Tab.AddSlider
-        Tab.Input = Tab.AddInput
-        Tab.Section = Tab.AddSection
-        Tab.Keybind = Tab.AddKeybind
 
         return Tab
     end
