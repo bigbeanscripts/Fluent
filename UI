@@ -38,6 +38,18 @@ local function HookWindow(Window)
                 local OriginalMethod = Tab[method]
                 Tab[method] = function(self, arg1, arg2, ...)
                     local Element = OriginalMethod(self, arg1, arg2, ...)
+
+                    if typeName == "Section" and Element then
+                        Element.Toggle = Element.AddToggle
+                        Element.Dropdown = Element.AddDropdown
+                        Element.Button = Element.AddButton
+                        Element.Paragraph = Element.AddParagraph
+                        Element.Slider = Element.AddSlider
+                        Element.Input = Element.AddInput
+                        Element.Section = Element.AddSection
+                        Element.Keybind = Element.AddKeybind
+                    end
+
                     local DisplayTitle = GetTitle(arg1, arg2)
 
                     if typeName == "Section" then
