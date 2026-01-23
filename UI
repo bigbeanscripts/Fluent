@@ -61,6 +61,16 @@ local function HookWindow(Window)
             end
         end
 
+        Tab.Toggle = Tab.AddToggle
+        Tab.Dropdown = Tab.AddDropdown
+        Tab.Button = Tab.AddButton
+        Tab.Paragraph = Tab.AddParagraph
+        Tab.Slider = Tab.AddSlider
+        Tab.Input = Tab.AddInput
+        Tab.Section = Tab.AddSection
+        Tab.Keybind = Tab.AddKeybind
+        
+
         HookElement("AddButton", "Button")
         HookElement("AddToggle", "Toggle")
         HookElement("AddSlider", "Slider")
