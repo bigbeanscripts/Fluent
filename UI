@@ -831,7 +831,7 @@ local toggleGui = Instance.new("ScreenGui")
 toggleGui.Name = "DuckyToggleGui"
 toggleGui.ResetOnSpawn = false
 toggleGui.DisplayOrder = 100
-toggleGui.Parent = (RunService:IsStudio() and player:WaitForChild("PlayerGui") or CoreGui)
+toggleGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
 
 local toggleBtn = Instance.new("ImageButton")
 local normalSize = UDim2.new(0, 150, 0, 150)
@@ -839,7 +839,7 @@ local pressedSize = UDim2.new(0, 135, 0, 135)
 
 toggleBtn.Size = normalSize
 toggleBtn.AnchorPoint = Vector2.new(1, 0)
-toggleBtn.Position = UDim2.new(1, -10, 0, 10) 
+toggleBtn.Position = UDim2.new(1, -10, 0, 0) 
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://116073591672187"
 toggleBtn.Parent = toggleGui
@@ -848,11 +848,16 @@ toggleBtn.Active = true
 local dragging = false
 local dragInput, mousePos, framePos
 
+local function isInteraction(input)
+    return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+end
+
 toggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if isInteraction(input) then
         dragging = true
         mousePos = input.Position
         framePos = toggleBtn.Position
+        
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
@@ -862,7 +867,7 @@ toggleBtn.InputBegan:Connect(function(input)
 end)
 
 toggleBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
