@@ -372,13 +372,10 @@ function CustomizeLibrary(Window)
 			local TargetTextColor = Color3.fromRGB(240, 240, 240)
 			local TargetBgColor = Color3.fromRGB(30, 30, 30)
 
-			if SettingsLabelRef then
-				TargetTextColor = SettingsLabelRef.TextColor3
-				-- EDITED: Use Text Color for the Flash
-				CurrentFlashColor = TargetTextColor 
-			end
+			if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
 			if SettingsButtonRef then
 				TargetBgColor = SettingsButtonRef.BackgroundColor3
+				CurrentFlashColor = TargetBgColor
 			end
 
 			local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
@@ -498,18 +495,10 @@ function CustomizeLibrary(Window)
 		local absPos = target.AbsolutePosition
 		local absSize = target.AbsoluteSize
 
-		-- EDITED: Added padding so the stroke is around the element properly
-		local flashPadding = 3
-		
-		overlay.Position = UDim2.fromOffset((absPos.X - rootAbs.X) - flashPadding, (absPos.Y - rootAbs.Y) - flashPadding)
-		overlay.Size = UDim2.fromOffset(absSize.X + (flashPadding * 2), absSize.Y + (flashPadding * 2))
+		overlay.Position = UDim2.fromOffset(absPos.X - rootAbs.X, absPos.Y - rootAbs.Y)
+		overlay.Size = UDim2.fromOffset(absSize.X, absSize.Y)
 
-		-- EDITED: Try to match the corner radius of the target, otherwise default
-		local targetCorner = target:FindFirstChildOfClass("UICorner")
-		local radius = UDim.new(0, 6)
-		if targetCorner then radius = targetCorner.CornerRadius end
-
-		Instance.new("UICorner", overlay).CornerRadius = radius
+		Instance.new("UICorner", overlay).CornerRadius = UDim.new(0, 6)
 
 		local stroke = Instance.new("UIStroke")
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -837,4 +826,76 @@ if OriginalWindowCtor then
 	end
 end
 
+
+local toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "DuckyToggleGui"
+toggleGui.ResetOnSpawn = false
+toggleGui.DisplayOrder = 100
+toggleGui.Parent = (RunService:IsStudio() and player:WaitForChild("PlayerGui") or CoreGui)
+
+local toggleBtn = Instance.new("ImageButton")
+local normalSize = UDim2.new(0, 150, 0, 150)
+local pressedSize = UDim2.new(0, 135, 0, 135)
+
+toggleBtn.Size = normalSize
+toggleBtn.AnchorPoint = Vector2.new(1, 0)
+toggleBtn.Position = UDim2.new(1, -10, 0, 10) 
+toggleBtn.BackgroundTransparency = 1
+toggleBtn.Image = "rbxassetid://116073591672187"
+toggleBtn.Parent = toggleGui
+toggleBtn.Active = true
+
+local dragging = false
+local dragInput, mousePos, framePos
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = toggleBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+toggleBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X,
+                                      framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+    end
+end)
+
+toggleBtn.MouseButton1Down:Connect(function()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.1), {
+        Size = pressedSize,
+        ImageColor3 = Color3.fromRGB(200, 200, 255)
+    }):Play()
+end)
+
+toggleBtn.MouseButton1Up:Connect(function()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
+        Size = normalSize,
+        ImageColor3 = Color3.fromRGB(255, 255, 255)
+    }):Play()
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    if Library.CurrentWindow then
+        Library.CurrentWindow.Root.Visible = not Library.CurrentWindow.Root.Visible
+    end
+end)
+
 return Library
+
+
+
