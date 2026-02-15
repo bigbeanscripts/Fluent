@@ -890,6 +890,14 @@ toggleBtn.MouseButton1Up:Connect(function()
     }):Play()
 end)
 
+if Library.CurrentWindow and Library.CurrentWindow.Root then
+    Library.CurrentWindow.Root.Destroying:Connect(function()
+        if toggleGui then
+            toggleGui:Destroy()
+        end
+    end)
+end
+
 toggleBtn.Activated:Connect(function()
     if Library.CurrentWindow then
         Library.CurrentWindow:Minimize()
