@@ -848,12 +848,8 @@ toggleBtn.Active = true
 local dragging = false
 local dragInput, mousePos, framePos
 
-local function isInteraction(input)
-    return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
-end
-
 toggleBtn.InputBegan:Connect(function(input)
-    if isInteraction(input) then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         mousePos = input.Position
         framePos = toggleBtn.Position
@@ -894,9 +890,9 @@ toggleBtn.MouseButton1Up:Connect(function()
     }):Play()
 end)
 
-toggleBtn.MouseButton1Click:Connect(function()
+toggleBtn.Activated:Connect(function()
     if Library.CurrentWindow then
-        Library.CurrentWindow.Root.Visible = not Library.CurrentWindow.Root.Visible
+        Library.CurrentWindow:Minimize()
     end
 end)
 
