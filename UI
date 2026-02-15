@@ -826,7 +826,6 @@ if OriginalWindowCtor then
 	end
 end
 
-
 local toggleGui = Instance.new("ScreenGui")
 toggleGui.Name = "DuckyToggleGui"
 toggleGui.ResetOnSpawn = false
@@ -839,68 +838,58 @@ local pressedSize = UDim2.new(0, 135, 0, 135)
 
 toggleBtn.Size = normalSize
 toggleBtn.AnchorPoint = Vector2.new(1, 0)
-toggleBtn.Position = UDim2.new(1, -10, 0, 0) 
+toggleBtn.Position = UDim2.new(1, -10, 0, 10) 
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://116073591672187"
 toggleBtn.Parent = toggleGui
 toggleBtn.Active = true
 
-local dragging = false
-local dragInput, mousePos, framePos
+local dragging, dragInput, mousePos, framePos
 
 toggleBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         mousePos = input.Position
         framePos = toggleBtn.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
 
 toggleBtn.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 
 game:GetService("UserInputService").InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - mousePos
-        toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X,
-                                      framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
     end
 end)
 
 toggleBtn.MouseButton1Down:Connect(function()
-    TweenService:Create(toggleBtn, TweenInfo.new(0.1), {
-        Size = pressedSize,
-        ImageColor3 = Color3.fromRGB(200, 200, 255)
-    }):Play()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.1), {Size = pressedSize, ImageColor3 = Color3.fromRGB(200, 200, 255)}):Play()
 end)
 
 toggleBtn.MouseButton1Up:Connect(function()
-    TweenService:Create(toggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
-        Size = normalSize,
-        ImageColor3 = Color3.fromRGB(255, 255, 255)
-    }):Play()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Size = normalSize, ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
 end)
 
-if Library.CurrentWindow and Library.CurrentWindow.Root then
-    Library.CurrentWindow.Root.Destroying:Connect(function()
-        if toggleGui then
-            toggleGui:Destroy()
-        end
-    end)
-end
-
 toggleBtn.Activated:Connect(function()
-    if Library.CurrentWindow then
-        Library.CurrentWindow:Minimize()
+    if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if Library.CurrentWindow and Library.CurrentWindow.Root then
+            Library.CurrentWindow.Root.AncestryChanged:Connect(function()
+                if not Library.CurrentWindow.Root:IsDescendantOf(game) then
+                    toggleGui:Destroy()
+                end
+            end)
+            break
+        end
     end
 end)
 
