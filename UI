@@ -896,4 +896,10 @@ toggleBtn.Activated:Connect(function()
     end
 end)
 
+if Library.CurrentWindow and Library.CurrentWindow.Root then
+    Library.CurrentWindow.Root.Destroying:Connect(function()
+        print("The Fluent Window has been destroyed!")
+    end)
+end
+
 return Library
