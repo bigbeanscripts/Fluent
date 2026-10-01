@@ -927,9 +927,12 @@ local function HookWindow(Window)
 		return Tab
 	end
 
-	local ScreenGui = Window.ScreenGui or Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
-	if ScreenGui then
-		ScreenGui.IgnoreGuiInset = true
+	local ScreenGui = nil
+	if Window and Window.Root then
+	    ScreenGui = Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
+	    if ScreenGui then
+	        ScreenGui.IgnoreGuiInset = true
+	    end
 	end
 
 	local savedPos = Window.Root.Position
