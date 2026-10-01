@@ -9,19 +9,6 @@ local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOog
 local SearchIndex = {}
 local ObjectSet = {}
 
-Library.CurrentFont = Enum.Font.GothamMedium
-
-Library.SetFont = function(fontEnum)
-	Library.CurrentFont = fontEnum
-	if Library.CurrentWindow and Library.CurrentWindow.Root then
-		for _, inst in ipairs(Library.CurrentWindow.Root:GetDescendants()) do
-			if inst:IsA("TextLabel") or inst:IsA("TextBox") or inst:IsA("TextButton") then
-				inst.Font = fontEnum
-			end
-		end
-	end
-end
-
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
 
@@ -175,9 +162,8 @@ local function HookContainer(container, ctx)
 			local scrollFrame = GetScrollFrame(self)
 
 			local childFrames = {}
-			local arrow = isExpanded and "▾  " or "▸  "
 
-			local sec = self:AddSection(arrow .. tostring(title or "Section"))
+			local sec = self:AddSection(tostring(title or "Section"))
 
 			local secFrame = nil
 			if scrollFrame then
@@ -186,8 +172,25 @@ local function HookContainer(container, ctx)
 			end
 
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
+			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
 
+			local arrowIcon = nil
 			if secFrame then
+				if titleLabel then
+					titleLabel.Position = UDim2.new(0, 22, titleLabel.Position.Y.Scale, titleLabel.Position.Y.Offset)
+				end
+
+				arrowIcon = Instance.new("ImageLabel")
+				arrowIcon.Name = "CollapseArrow"
+				arrowIcon.BackgroundTransparency = 1
+				arrowIcon.Image = "rbxassetid://10709790948"
+				arrowIcon.ImageColor3 = originalColor
+				arrowIcon.Size = UDim2.fromOffset(14, 14)
+				arrowIcon.AnchorPoint = Vector2.new(0, 0.5)
+				arrowIcon.Position = UDim2.new(0, 2, 0.5, 0)
+				arrowIcon.Rotation = isExpanded and 0 or -90
+				arrowIcon.Parent = secFrame
+
 				local triggerBtn = Instance.new("TextButton")
 				triggerBtn.Name = "CollapsibleTrigger"
 				triggerBtn.Size = UDim2.fromScale(1, 1)
@@ -196,11 +199,13 @@ local function HookContainer(container, ctx)
 				triggerBtn.ZIndex = 25
 				triggerBtn.Parent = secFrame
 
-				local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
-
 				triggerBtn.MouseEnter:Connect(function()
+					local hoverColor = Color3.fromRGB(255, 255, 255)
 					if titleLabel then
-						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = hoverColor}):Play()
+					end
+					if arrowIcon then
+						TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = hoverColor}):Play()
 					end
 				end)
 
@@ -208,14 +213,20 @@ local function HookContainer(container, ctx)
 					if titleLabel then
 						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = originalColor}):Play()
 					end
+					if arrowIcon then
+						TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = originalColor}):Play()
+					end
 				end)
 
 				triggerBtn.MouseButton1Click:Connect(function()
 					isExpanded = not isExpanded
-					local currentArrow = isExpanded and "▾  " or "▸  "
-					if titleLabel then
-						titleLabel.Text = currentArrow .. tostring(title or "Section")
+
+					if arrowIcon then
+						TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Rotation = isExpanded and 0 or -90
+						}):Play()
 					end
+
 					for _, fr in ipairs(childFrames) do
 						if fr and fr:IsA("GuiObject") then
 							fr.Visible = isExpanded
@@ -336,7 +347,7 @@ function CustomizeLibrary(Window)
 		Parent = SearchTab,
 		BackgroundTransparency = 1,
 		Text = "Search...",
-		Font = Library.CurrentFont,
+		Font = Enum.Font.Gotham,
 		TextColor3 = Color3.fromRGB(160, 160, 160),
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -370,7 +381,7 @@ function CustomizeLibrary(Window)
 		Parent = ProfileFrame,
 		BackgroundTransparency = 1,
 		Text = LocalPlayer.DisplayName,
-		Font = Library.CurrentFont,
+		Font = Enum.Font.GothamBold,
 		TextColor3 = Color3.fromRGB(240, 240, 240),
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -382,7 +393,7 @@ function CustomizeLibrary(Window)
 		Parent = ProfileFrame,
 		BackgroundTransparency = 1,
 		Text = "@" .. LocalPlayer.Name,
-		Font = Library.CurrentFont,
+		Font = Enum.Font.Gotham,
 		TextColor3 = Color3.fromRGB(160, 160, 160),
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -419,7 +430,7 @@ function CustomizeLibrary(Window)
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0,42,0,0),
 		Size = UDim2.new(1,-45,0,45),
-		Font = Library.CurrentFont,
+		Font = Enum.Font.GothamMedium,
 		Text = "",
 		PlaceholderText = "Search features...",
 		TextSize = 15,
@@ -777,7 +788,7 @@ function CustomizeLibrary(Window)
 					BackgroundTransparency = 1,
 					Text = item.Name,
 					TextColor3 = SpotInput.TextColor3,
-					Font = Library.CurrentFont,
+					Font = Enum.Font.GothamMedium,
 					TextSize = 13,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					AutomaticSize = Enum.AutomaticSize.X,
@@ -792,7 +803,7 @@ function CustomizeLibrary(Window)
 					BackgroundTransparency = 1,
 					Text = "•",
 					TextColor3 = SpotInput.TextColor3,
-					Font = Library.CurrentFont,
+					Font = Enum.Font.Gotham,
 					TextSize = 13,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					Position = UDim2.new(0, 0, 0, 0),
@@ -811,7 +822,7 @@ function CustomizeLibrary(Window)
 					BackgroundTransparency = 1,
 					Text = displayPath,
 					TextColor3 = SpotInput.TextColor3,
-					Font = Library.CurrentFont,
+					Font = Enum.Font.Gotham,
 					TextSize = 12,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					Position = UDim2.new(0, 0, 0, 0),
@@ -915,12 +926,6 @@ local function HookWindow(Window)
 
 		return Tab
 	end
-
-	Window.Root.DescendantAdded:Connect(function(inst)
-		if Library.CurrentFont and (inst:IsA("TextLabel") or inst:IsA("TextBox") or inst:IsA("TextButton")) then
-			inst.Font = Library.CurrentFont
-		end
-	end)
 
 	task.spawn(function()
 		task.wait(0.1)
