@@ -927,6 +927,32 @@ local function HookWindow(Window)
 		return Tab
 	end
 
+	local ScreenGui = Window.ScreenGui or Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
+	if ScreenGui then
+		ScreenGui.IgnoreGuiInset = true
+	end
+
+	local savedPos = Window.Root.Position
+	local savedSize = Window.Root.Size
+
+	Window.Maximize = function(self)
+		if self.Maximized then
+			self.Maximized = false
+			TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = savedPos,
+				Size = savedSize
+			}):Play()
+		else
+			savedPos = self.Root.Position
+			savedSize = self.Root.Size
+			self.Maximized = true
+			TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.new(0, 0, 0, 0),
+				Size = UDim2.new(1, 0, 1, 0)
+			}):Play()
+		end
+	end
+
 	task.spawn(function()
 		task.wait(0.1)
 		CustomizeLibrary(Window)
@@ -1002,32 +1028,6 @@ end)
 toggleBtn.Activated:Connect(function()
     if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
 end)
-
-local ScreenGui = Window.ScreenGui or Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
-if ScreenGui then
-	ScreenGui.IgnoreGuiInset = true
-end
-
-local savedPos = Window.Root.Position
-local savedSize = Window.Root.Size
-
-Window.Maximize = function(self)
-	if self.Maximized then
-		self.Maximized = false
-		TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = savedPos,
-			Size = savedSize
-		}):Play()
-	else
-		savedPos = self.Root.Position
-		savedSize = self.Root.Size
-		self.Maximized = true
-		TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0)
-		}):Play()
-	end
-end
 
 task.spawn(function()
     while task.wait(0.5) do
