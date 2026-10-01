@@ -301,10 +301,17 @@ local Icons = {
 }
 
 function CustomizeLibrary(Window)
+	if not Window or not Window.Root then return end
+
 	local RootFrame = Window.Root
 	local TabHolder = Window.TabHolder
+	if not TabHolder then return end
+
 	local TabContainer = TabHolder.Parent
+	if not TabContainer then return end
+
 	local Sidebar = TabContainer.Parent
+	if not Sidebar then return end
 
 	local function Create(class, properties)
 		local inst = Instance.new(class)
@@ -314,7 +321,7 @@ function CustomizeLibrary(Window)
 
 	TabHolder.CanvasSize = UDim2.new(0,0,0,0)
 	TabContainer.Position = UDim2.new(0, 12, 0, 60)
-	TabContainer.Size = UDim2.new(0, Window.TabWidth, 1, -115)
+	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -115)
 
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
 	ListPadding.PaddingTop = UDim.new(0, 4)
@@ -899,7 +906,7 @@ function CustomizeLibrary(Window)
 end
 
 local function HookWindow(Window)
-	if not Window or Window.__SearchHooked then return Window end
+	if not Window or type(Window) ~= "table" or Window.__SearchHooked then return Window end
 	Window.__SearchHooked = true
 
 	local OriginalAddTab = Window.AddTab
@@ -927,32 +934,36 @@ local function HookWindow(Window)
 		return Tab
 	end
 
-	local ScreenGui = nil
-	if Window and Window.Root then
-	    ScreenGui = Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
-	    if ScreenGui then
-	        ScreenGui.IgnoreGuiInset = true
-	    end
-	end
+	task.spawn(function()
+		task.wait(0.1)
+		pcall(function()
+			local ScreenGui = Window.Root and Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
+			if ScreenGui then
+				ScreenGui.IgnoreGuiInset = true
+			end
+		end)
+	end)
 
-	local savedPos = Window.Root.Position
-	local savedSize = Window.Root.Size
+	if Window.Root then
+		local savedPos = Window.Root.Position
+		local savedSize = Window.Root.Size
 
-	Window.Maximize = function(self)
-		if self.Maximized then
-			self.Maximized = false
-			TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = savedPos,
-				Size = savedSize
-			}):Play()
-		else
-			savedPos = self.Root.Position
-			savedSize = self.Root.Size
-			self.Maximized = true
-			TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = UDim2.new(0, 0, 0, 0),
-				Size = UDim2.new(1, 0, 1, 0)
-			}):Play()
+		Window.Maximize = function(self)
+			if self.Maximized then
+				self.Maximized = false
+				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = savedPos,
+					Size = savedSize
+				}):Play()
+			else
+				savedPos = self.Root.Position
+				savedSize = self.Root.Size
+				self.Maximized = true
+				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(1, 0, 1, 0)
+				}):Play()
+			end
 		end
 	end
 
