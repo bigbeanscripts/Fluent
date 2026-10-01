@@ -141,35 +141,33 @@ local function HookContainer(container, ctx)
 	if container.AddSection and not container.__SectionHooked then
 		container.__SectionHooked = true
 		local OldAddSection = container.AddSection
+
 		container.AddSection = function(self, arg1, arg2, ...)
-			local sec = OldAddSection(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			if ctx.SetSection then ctx.SetSection(title) end
-			HookContainer(sec, ctx)
-			RecordElement(ctx, "Section", title, sec)
-			return sec
-		end
-		container.Section = function(self, ...)
-			return self:AddSection(...)
-		end
-	end
 
-	if not container.__HookCollapsible then
-		container.__HookCollapsible = true
-
-		container.AddCollapsible = function(self, title, defaultExpanded)
-			local isExpanded = defaultExpanded == nil and true or defaultExpanded
 			local scrollFrame = GetScrollFrame(self)
+			local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
 
-			local childFrames = {}
-
-			local sec = self:AddSection(tostring(title or "Section"))
+			local sec = OldAddSection(self, arg1, arg2, ...)
+			RecordElement(ctx, "Section", title, sec)
 
 			local secFrame = nil
 			if scrollFrame then
 				local children = scrollFrame:GetChildren()
-				secFrame = children[#children]
+				for i = countBefore + 1, #children do
+					if children[i]:IsA("GuiObject") then
+						secFrame = children[i]
+						break
+					end
+				end
+				if not secFrame then
+					secFrame = children[#children]
+				end
 			end
+
+			local isExpanded = true
+			local childFrames = {}
 
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
 			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
@@ -188,7 +186,7 @@ local function HookContainer(container, ctx)
 				arrowIcon.Size = UDim2.fromOffset(14, 14)
 				arrowIcon.AnchorPoint = Vector2.new(0, 0.5)
 				arrowIcon.Position = UDim2.new(0, 2, 0.5, 0)
-				arrowIcon.Rotation = isExpanded and 0 or -90
+				arrowIcon.Rotation = 0
 				arrowIcon.Parent = secFrame
 
 				local triggerBtn = Instance.new("TextButton")
@@ -235,40 +233,46 @@ local function HookContainer(container, ctx)
 				end)
 			end
 
-			local sub = {}
+			HookContainer(sec, ctx)
+
 			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind"}
-
 			for _, m in ipairs(methods) do
-				sub[m] = function(_, ...)
-					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
-					local el = self[m](self, ...)
-
-					if scrollFrame then
-						local newChildren = scrollFrame:GetChildren()
-						for i = countBefore + 1, #newChildren do
-							local itemFrame = newChildren[i]
-							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
-								itemFrame.Visible = isExpanded
-								table.insert(childFrames, itemFrame)
+				local oldMethod = sec[m]
+				if oldMethod then
+					sec[m] = function(secSelf, ...)
+						local subCountBefore = scrollFrame and #scrollFrame:GetChildren() or 0
+						local el = oldMethod(secSelf, ...)
+						if scrollFrame then
+							local newChildren = scrollFrame:GetChildren()
+							for i = subCountBefore + 1, #newChildren do
+								local itemFrame = newChildren[i]
+								if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
+									itemFrame.Visible = isExpanded
+									table.insert(childFrames, itemFrame)
+								end
 							end
 						end
+						return el
 					end
-
-					return el
 				end
 			end
 
-			sub.Toggle = sub.AddToggle
-			sub.Dropdown = sub.AddDropdown
-			sub.Button = sub.AddButton
-			sub.Paragraph = sub.AddParagraph
-			sub.Slider = sub.AddSlider
-			sub.Input = sub.AddInput
-			sub.Keybind = sub.AddKeybind
+			if sec.AddToggle then sec.Toggle = sec.AddToggle end
+			if sec.AddDropdown then sec.Dropdown = sec.AddDropdown end
+			if sec.AddButton then sec.Button = sec.AddButton end
+			if sec.AddParagraph then sec.Paragraph = sec.AddParagraph end
+			if sec.AddSlider then sec.Slider = sec.AddSlider end
+			if sec.AddInput then sec.Input = sec.AddInput end
+			if sec.AddKeybind then sec.Keybind = sec.AddKeybind end
 
-			return sub
+			return sec
 		end
-		container.Collapsible = container.AddCollapsible
+
+		container.Section = function(self, ...)
+			return self:AddSection(...)
+		end
+		container.AddCollapsible = container.AddSection
+		container.Collapsible = container.AddSection
 	end
 
 	if container.AddToggle then container.Toggle = container.AddToggle end
@@ -948,18 +952,38 @@ local function HookWindow(Window)
 		local savedPos = Window.Root.Position
 		local savedSize = Window.Root.Size
 
-		Window.Maximize = function(self)
-			if self.Maximized then
-				self.Maximized = false
-				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Window.Maximize = function(...)
+			local args = {...}
+			local selfObj = Window
+			local targetState = nil
+
+			if type(args[1]) == "table" and args[1].Root then
+				selfObj = args[1]
+				if type(args[2]) == "boolean" then
+					targetState = args[2]
+				end
+			elseif type(args[1]) == "boolean" then
+				targetState = args[1]
+			end
+
+			local shouldMaximize
+			if targetState ~= nil then
+				shouldMaximize = targetState
+			else
+				shouldMaximize = not selfObj.Maximized
+			end
+
+			if not shouldMaximize then
+				selfObj.Maximized = false
+				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = savedPos,
 					Size = savedSize
 				}):Play()
 			else
-				savedPos = self.Root.Position
-				savedSize = self.Root.Size
-				self.Maximized = true
-				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				savedPos = selfObj.Root.Position
+				savedSize = selfObj.Root.Size
+				selfObj.Maximized = true
+				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(1, 0, 1, 0)
 				}):Play()
