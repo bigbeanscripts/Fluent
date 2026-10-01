@@ -78,35 +78,13 @@ local function HookContainer(container, ctx)
 	if not container or container.__Aliased then return container end
 	container.__Aliased = true
 
-	local function CaptureNewChildren(scrollFrame, beforeSet, targetTable, isExpanded, secFrame)
-		if not scrollFrame then return end
-		for _, c in ipairs(scrollFrame:GetChildren()) do
-			if not beforeSet[c] and c:IsA("GuiObject") and c ~= secFrame then
-				c.Visible = isExpanded
-				if not table.find(targetTable, c) then
-					table.insert(targetTable, c)
-				end
-			end
-		end
-	end
-
 	if container.AddToggle and not container.__HookAddToggle then
 		container.__HookAddToggle = true
 		local Old = container.AddToggle
 		container.AddToggle = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Toggle", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -115,19 +93,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddDropdown = true
 		local Old = container.AddDropdown
 		container.AddDropdown = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Dropdown", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -136,19 +104,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddButton = true
 		local Old = container.AddButton
 		container.AddButton = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Button", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -157,19 +115,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddParagraph = true
 		local Old = container.AddParagraph
 		container.AddParagraph = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Paragraph", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -178,19 +126,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddSlider = true
 		local Old = container.AddSlider
 		container.AddSlider = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Slider", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -199,19 +137,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddInput = true
 		local Old = container.AddInput
 		container.AddInput = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Input", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -220,19 +148,9 @@ local function HookContainer(container, ctx)
 		container.__HookAddKeybind = true
 		local Old = container.AddKeybind
 		container.AddKeybind = function(self, arg1, arg2, ...)
-			local scroll = GetScrollFrame(self)
-			local before = {}
-			if scroll then
-				for _, c in ipairs(scroll:GetChildren()) do before[c] = true end
-			end
-
 			local el = Old(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
 			RecordElement(ctx, "Keybind", title, el)
-
-			if ctx.CurrentSectionChildFrames then
-				CaptureNewChildren(scroll, before, ctx.CurrentSectionChildFrames, ctx.CurrentSectionExpanded == true, ctx.CurrentSectionFrame)
-			end
 			return el
 		end
 	end
@@ -243,49 +161,35 @@ local function HookContainer(container, ctx)
 
 		container.AddSection = function(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
-			if ctx.SetSection then ctx.SetSection(title) end
+			local defaultExpanded = true
+			if type(arg2) == "boolean" then
+				defaultExpanded = arg2
+			elseif type(arg1) == "table" and type(arg1.Default) == "boolean" then
+				defaultExpanded = arg1.Default
+			end
 
+			local isExpanded = defaultExpanded
 			local scrollFrame = GetScrollFrame(self)
 
-			local beforeSec = {}
-			if scrollFrame then
-				for _, c in ipairs(scrollFrame:GetChildren()) do
-					beforeSec[c] = true
-				end
-			end
-
-			local sec = OldAddSection(self, arg1, arg2, ...)
+			local sec = OldAddSection(self, tostring(title or "Section"))
 			RecordElement(ctx, "Section", title, sec)
-
-			if not scrollFrame then
-				scrollFrame = GetScrollFrame(self) or GetScrollFrame(sec)
-			end
 
 			local secFrame = nil
 			if scrollFrame then
-				for _, c in ipairs(scrollFrame:GetChildren()) do
-					if not beforeSec[c] and c:IsA("GuiObject") then
-						secFrame = c
-						break
-					end
-				end
+				local children = scrollFrame:GetChildren()
+				secFrame = children[#children]
 			end
 
-			local isExpanded = true
 			local childFrames = {}
-
-			ctx.CurrentSectionChildFrames = childFrames
-			ctx.CurrentSectionExpanded = isExpanded
-			ctx.CurrentSectionFrame = secFrame
-
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
 			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
+			local arrowIcon = nil
 
 			if titleLabel then
 				titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 				titleLabel.Size = UDim2.new(1, 0, 0, 18)
 
-				local arrowIcon = Instance.new("ImageLabel")
+				arrowIcon = Instance.new("ImageLabel")
 				arrowIcon.Name = "CollapseArrow"
 				arrowIcon.BackgroundTransparency = 1
 				arrowIcon.Image = "rbxassetid://10709790948"
@@ -293,7 +197,7 @@ local function HookContainer(container, ctx)
 				arrowIcon.Size = UDim2.fromOffset(14, 14)
 				arrowIcon.AnchorPoint = Vector2.new(1, 0.5)
 				arrowIcon.Position = UDim2.new(1, -6, 0.5, 0)
-				arrowIcon.Rotation = 0
+				arrowIcon.Rotation = isExpanded and 0 or 180
 				arrowIcon.ZIndex = 20
 				arrowIcon.Parent = titleLabel
 
@@ -319,68 +223,63 @@ local function HookContainer(container, ctx)
 
 				triggerBtn.MouseButton1Click:Connect(function()
 					isExpanded = not isExpanded
-					ctx.CurrentSectionExpanded = isExpanded
 
 					TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Rotation = isExpanded and 0 or 180
 					}):Play()
 
 					for _, fr in ipairs(childFrames) do
-						if fr and fr.Parent then
+						if fr and fr:IsA("GuiObject") then
 							fr.Visible = isExpanded
 						end
 					end
 				end)
 			end
 
-			HookContainer(sec, ctx)
+			local sub = {}
+			setmetatable(sub, { __index = sec })
 
 			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind"}
 			for _, m in ipairs(methods) do
-				local oldMethod = sec[m]
-				if oldMethod then
-					sec[m] = function(secSelf, ...)
-						local scroll = scrollFrame or GetScrollFrame(secSelf) or GetScrollFrame(self)
-						local beforeElem = {}
-						if scroll then
-							for _, c in ipairs(scroll:GetChildren()) do
-								beforeElem[c] = true
+				sub[m] = function(_, ...)
+					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
+					local el = self[m](self, ...)
+
+					if scrollFrame then
+						local newChildren = scrollFrame:GetChildren()
+						for i = countBefore + 1, #newChildren do
+							local itemFrame = newChildren[i]
+							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
+								itemFrame.Visible = isExpanded
+								table.insert(childFrames, itemFrame)
 							end
 						end
-
-						local el = oldMethod(secSelf, ...)
-
-						if scroll then
-							CaptureNewChildren(scroll, beforeElem, childFrames, isExpanded, secFrame)
-						end
-
-						local df = GetFrameFromElement(el)
-						if df and df:IsA("GuiObject") and df ~= secFrame and not table.find(childFrames, df) then
-							df.Visible = isExpanded
-							table.insert(childFrames, df)
-						end
-
-						return el
 					end
+
+					return el
 				end
 			end
 
-			if sec.AddToggle then sec.Toggle = sec.AddToggle end
-			if sec.AddDropdown then sec.Dropdown = sec.AddDropdown end
-			if sec.AddButton then sec.Button = sec.AddButton end
-			if sec.AddParagraph then sec.Paragraph = sec.AddParagraph end
-			if sec.AddSlider then sec.Slider = sec.AddSlider end
-			if sec.AddInput then sec.Input = sec.AddInput end
-			if sec.AddKeybind then sec.Keybind = sec.AddKeybind end
+			sub.Toggle = sub.AddToggle
+			sub.Dropdown = sub.AddDropdown
+			sub.Button = sub.AddButton
+			sub.Paragraph = sub.AddParagraph
+			sub.Slider = sub.AddSlider
+			sub.Input = sub.AddInput
+			sub.Keybind = sub.AddKeybind
 
-			return sec
+			return sub
 		end
 
 		container.Section = function(self, ...)
 			return self:AddSection(...)
 		end
-		container.AddCollapsible = container.AddSection
-		container.Collapsible = container.AddSection
+		container.AddCollapsible = function(self, ...)
+			return self:AddSection(...)
+		end
+		container.Collapsible = function(self, ...)
+			return self:AddSection(...)
+		end
 	end
 
 	if container.AddToggle then container.Toggle = container.AddToggle end
