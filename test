@@ -172,58 +172,48 @@ local function HookContainer(container, ctx)
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
 			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
 
-			local arrowIcon = nil
-			if secFrame then
-				if titleLabel then
-					titleLabel.Position = UDim2.new(0, 22, titleLabel.Position.Y.Scale, titleLabel.Position.Y.Offset)
-				end
+			if titleLabel then
+				titleLabel.AutomaticSize = Enum.AutomaticSize.Y
+				titleLabel.Size = UDim2.new(1, 0, 0, 18)
 
-				arrowIcon = Instance.new("ImageLabel")
+				local arrowIcon = Instance.new("ImageLabel")
 				arrowIcon.Name = "CollapseArrow"
 				arrowIcon.BackgroundTransparency = 1
 				arrowIcon.Image = "rbxassetid://10709790948"
 				arrowIcon.ImageColor3 = originalColor
 				arrowIcon.Size = UDim2.fromOffset(14, 14)
-				arrowIcon.AnchorPoint = Vector2.new(0, 0.5)
-				arrowIcon.Position = UDim2.new(0, 2, 0.5, 0)
+				arrowIcon.AnchorPoint = Vector2.new(1, 0.5)
+				arrowIcon.Position = UDim2.new(1, -6, 0.5, 0)
 				arrowIcon.Rotation = 0
-				arrowIcon.Parent = secFrame
+				arrowIcon.ZIndex = 20
+				arrowIcon.Parent = titleLabel
 
 				local triggerBtn = Instance.new("TextButton")
 				triggerBtn.Name = "CollapsibleTrigger"
 				triggerBtn.Size = UDim2.fromScale(1, 1)
+				triggerBtn.Position = UDim2.new(0, 0, 0, 0)
 				triggerBtn.BackgroundTransparency = 1
 				triggerBtn.Text = ""
 				triggerBtn.ZIndex = 25
-				triggerBtn.Parent = secFrame
+				triggerBtn.Parent = titleLabel
 
 				triggerBtn.MouseEnter:Connect(function()
 					local hoverColor = Color3.fromRGB(255, 255, 255)
-					if titleLabel then
-						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = hoverColor}):Play()
-					end
-					if arrowIcon then
-						TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = hoverColor}):Play()
-					end
+					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = hoverColor}):Play()
+					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = hoverColor}):Play()
 				end)
 
 				triggerBtn.MouseLeave:Connect(function()
-					if titleLabel then
-						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = originalColor}):Play()
-					end
-					if arrowIcon then
-						TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = originalColor}):Play()
-					end
+					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = originalColor}):Play()
+					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = originalColor}):Play()
 				end)
 
 				triggerBtn.MouseButton1Click:Connect(function()
 					isExpanded = not isExpanded
 
-					if arrowIcon then
-						TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-							Rotation = isExpanded and 0 or -90
-						}):Play()
-					end
+					TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Rotation = isExpanded and 0 or 180
+					}):Play()
 
 					for _, fr in ipairs(childFrames) do
 						if fr and fr:IsA("GuiObject") then
