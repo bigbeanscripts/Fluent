@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
@@ -10,7 +11,6 @@ local ObjectSet = {}
 
 Library.CurrentFont = Enum.Font.GothamMedium
 
--- Global Font Setter
 Library.SetFont = function(fontEnum)
 	Library.CurrentFont = fontEnum
 	if Library.CurrentWindow and Library.CurrentWindow.Root then
@@ -37,8 +37,19 @@ local function GetFrameFromElement(Element)
 		return Element
 	end
 	if type(Element) == "table" then
-		local f = rawget(Element, "Frame")
+		local f = rawget(Element, "Frame") or rawget(Element, "Root") or rawget(Element, "Container") or rawget(Element, "Holder")
 		if typeof(f) == "Instance" then return f end
+	end
+	return nil
+end
+
+local function GetScrollFrame(obj)
+	if type(obj) ~= "table" then return nil end
+	for _, k in ipairs({"Container", "Frame", "Scroll", "Page", "Holder"}) do
+		local val = rawget(obj, k)
+		if typeof(val) == "Instance" and val:IsA("ScrollingFrame") then
+			return val
+		end
 	end
 	return nil
 end
@@ -156,40 +167,83 @@ local function HookContainer(container, ctx)
 		end
 	end
 
-	-- NEW FEATURE: Collapsible Container
-	if container.AddButton and not container.__HookCollapsible then
+	if not container.__HookCollapsible then
 		container.__HookCollapsible = true
+
 		container.AddCollapsible = function(self, title, defaultExpanded)
 			local isExpanded = defaultExpanded == nil and true or defaultExpanded
-			local elements = {}
+			local scrollFrame = GetScrollFrame(self)
 
-			local headerBtn
-			headerBtn = self:AddButton({
-				Title = (isExpanded and "▼ " or "▶ ") .. tostring(title or "Collapsible"),
-				Description = "Click to collapse / expand",
-				Callback = function()
+			local childFrames = {}
+			local arrow = isExpanded and "▾  " or "▸  "
+
+			local sec = self:AddSection(arrow .. tostring(title or "Section"))
+
+			local secFrame = nil
+			if scrollFrame then
+				local children = scrollFrame:GetChildren()
+				secFrame = children[#children]
+			end
+
+			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
+
+			if secFrame then
+				local triggerBtn = Instance.new("TextButton")
+				triggerBtn.Name = "CollapsibleTrigger"
+				triggerBtn.Size = UDim2.fromScale(1, 1)
+				triggerBtn.BackgroundTransparency = 1
+				triggerBtn.Text = ""
+				triggerBtn.ZIndex = 25
+				triggerBtn.Parent = secFrame
+
+				local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
+
+				triggerBtn.MouseEnter:Connect(function()
+					if titleLabel then
+						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+					end
+				end)
+
+				triggerBtn.MouseLeave:Connect(function()
+					if titleLabel then
+						TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = originalColor}):Play()
+					end
+				end)
+
+				triggerBtn.MouseButton1Click:Connect(function()
 					isExpanded = not isExpanded
-					headerBtn:SetTitle((isExpanded and "▼ " or "▶ ") .. tostring(title or "Collapsible"))
-					for _, el in ipairs(elements) do
-						local fr = GetFrameFromElement(el)
-						if fr then
+					local currentArrow = isExpanded and "▾  " or "▸  "
+					if titleLabel then
+						titleLabel.Text = currentArrow .. tostring(title or "Section")
+					end
+					for _, fr in ipairs(childFrames) do
+						if fr and fr:IsA("GuiObject") then
 							fr.Visible = isExpanded
 						end
 					end
-				end
-			})
+				end)
+			end
 
 			local sub = {}
 			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind"}
+
 			for _, m in ipairs(methods) do
 				sub[m] = function(_, ...)
-					local item = self[m](self, ...)
-					local fr = GetFrameFromElement(item)
-					if fr then
-						fr.Visible = isExpanded
+					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
+					local el = self[m](self, ...)
+
+					if scrollFrame then
+						local newChildren = scrollFrame:GetChildren()
+						for i = countBefore + 1, #newChildren do
+							local itemFrame = newChildren[i]
+							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
+								itemFrame.Visible = isExpanded
+								table.insert(childFrames, itemFrame)
+							end
+						end
 					end
-					table.insert(elements, item)
-					return item
+
+					return el
 				end
 			end
 
