@@ -147,22 +147,24 @@ local function HookContainer(container, ctx)
 			if ctx.SetSection then ctx.SetSection(title) end
 
 			local scrollFrame = GetScrollFrame(self)
-			local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
+
+			local beforeSec = {}
+			if scrollFrame then
+				for _, c in ipairs(scrollFrame:GetChildren()) do
+					beforeSec[c] = true
+				end
+			end
 
 			local sec = OldAddSection(self, arg1, arg2, ...)
 			RecordElement(ctx, "Section", title, sec)
 
 			local secFrame = nil
 			if scrollFrame then
-				local children = scrollFrame:GetChildren()
-				for i = countBefore + 1, #children do
-					if children[i]:IsA("GuiObject") then
-						secFrame = children[i]
+				for _, c in ipairs(scrollFrame:GetChildren()) do
+					if not beforeSec[c] and c:IsA("GuiObject") then
+						secFrame = c
 						break
 					end
-				end
-				if not secFrame then
-					secFrame = children[#children]
 				end
 			end
 
@@ -216,7 +218,7 @@ local function HookContainer(container, ctx)
 					}):Play()
 
 					for _, fr in ipairs(childFrames) do
-						if fr and fr:IsA("GuiObject") then
+						if fr and fr.Parent then
 							fr.Visible = isExpanded
 						end
 					end
@@ -230,18 +232,32 @@ local function HookContainer(container, ctx)
 				local oldMethod = sec[m]
 				if oldMethod then
 					sec[m] = function(secSelf, ...)
-						local subCountBefore = scrollFrame and #scrollFrame:GetChildren() or 0
-						local el = oldMethod(secSelf, ...)
+						local beforeElem = {}
 						if scrollFrame then
-							local newChildren = scrollFrame:GetChildren()
-							for i = subCountBefore + 1, #newChildren do
-								local itemFrame = newChildren[i]
-								if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
-									itemFrame.Visible = isExpanded
-									table.insert(childFrames, itemFrame)
+							for _, c in ipairs(scrollFrame:GetChildren()) do
+								beforeElem[c] = true
+							end
+						end
+
+						local el = oldMethod(secSelf, ...)
+
+						if scrollFrame then
+							for _, c in ipairs(scrollFrame:GetChildren()) do
+								if not beforeElem[c] and c:IsA("GuiObject") and c ~= secFrame then
+									c.Visible = isExpanded
+									if not table.find(childFrames, c) then
+										table.insert(childFrames, c)
+									end
 								end
 							end
 						end
+
+						local df = GetFrameFromElement(el)
+						if df and df:IsA("GuiObject") and not table.find(childFrames, df) then
+							df.Visible = isExpanded
+							table.insert(childFrames, df)
+						end
+
 						return el
 					end
 				end
