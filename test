@@ -239,7 +239,7 @@ local function HookContainer(container, ctx)
 			local sub = {}
 			setmetatable(sub, { __index = sec })
 
-			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind"}
+			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind", "CreateToggle", "CreateDropdown", "CreateButton", "CreateParagraph", "CreateSlider", "CreateInput", "CreateKeybind"}
 			for _, m in ipairs(methods) do
 				sub[m] = function(_, ...)
 					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
