@@ -1008,13 +1008,9 @@ function CustomizeLibrary(Window)
 		stroke.Transparency = 1
 		stroke.Parent = overlay
 
-		local scrollTween = TweenService:Create(sf, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
-		})
-		scrollTween:Play()
+		sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
 
 		task.spawn(function()
-			scrollTween.Completed:Wait()
 			for _ = 1, 3 do
 				if not overlay.Parent then break end
 				local t1 = TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
