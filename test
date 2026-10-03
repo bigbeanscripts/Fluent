@@ -11,6 +11,7 @@ local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOog
 local SearchIndex = {}
 local ObjectSet = {}
 local SectionExpanders = {}
+local SectionExpandersByTitle = {}
 
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
@@ -36,11 +37,26 @@ local function GetFrameFromElement(Element)
 end
 
 local function GetScrollFrame(obj)
-	if type(obj) ~= "table" then return nil end
-	for _, k in ipairs({"Container", "Frame", "Scroll", "Page", "Holder", "Root"}) do
-		local val = rawget(obj, k)
-		if typeof(val) == "Instance" and val:IsA("ScrollingFrame") then
-			return val
+	if type(obj) == "table" then
+		for _, k in ipairs({"Container", "Frame", "Scroll", "Page", "Holder", "Root"}) do
+			local success, val = pcall(function() return obj[k] end)
+			if success and typeof(val) == "Instance" then
+				if val:IsA("ScrollingFrame") then
+					return val
+				end
+				local sf = val:FindFirstChildWhichIsA("ScrollingFrame", true)
+				if sf then return sf end
+			end
+		end
+	end
+	if Library.CurrentWindow and Library.CurrentWindow.Root then
+		local holder = Library.CurrentWindow.Root:FindFirstChild("ContainerHolder", true)
+		if holder then
+			for _, page in ipairs(holder:GetChildren()) do
+				if page:IsA("ScrollingFrame") and page.Visible then
+					return page
+				end
+			end
 		end
 	end
 	return nil
@@ -149,6 +165,8 @@ local function HookContainer(container, ctx)
 
 		container.AddSection = function(self, arg1, arg2, ...)
 			local title = GetTitle(arg1, arg2)
+			if ctx.SetSection then ctx.SetSection(title) end
+
 			local defaultExpanded = true
 			if type(arg2) == "boolean" then
 				defaultExpanded = arg2
@@ -186,6 +204,15 @@ local function HookContainer(container, ctx)
 						fr.Visible = isExpanded
 					end
 				end
+			end
+
+			local expandAction = function()
+				SetExpanded(true)
+			end
+
+			SectionExpandersByTitle[tostring(title):lower()] = expandAction
+			if secFrame then
+				SectionExpanders[secFrame] = expandAction
 			end
 
 			if titleLabel then
@@ -245,9 +272,7 @@ local function HookContainer(container, ctx)
 							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
 								itemFrame.Visible = isExpanded
 								table.insert(childFrames, itemFrame)
-								SectionExpanders[itemFrame] = function()
-									SetExpanded(true)
-								end
+								SectionExpanders[itemFrame] = expandAction
 							end
 						end
 					end
@@ -450,7 +475,7 @@ function CustomizeLibrary(Window)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		Size = UDim2.fromOffset(460, 316),
-		BackgroundColor3 = Color3.fromRGB(13, 20, 28),
+		BackgroundColor3 = Color3.fromRGB(14, 18, 24),
 		BorderSizePixel = 0,
 		Active = true,
 		ClipsDescendants = true,
@@ -515,13 +540,14 @@ function CustomizeLibrary(Window)
 
 	local StatCardFrames = {}
 	local StatCardTitles = {}
+	local StatCardValues = {}
 
 	local function CreateStatCard(title, value, parent, size, pos)
 		local card = Create("Frame", {
 			Parent = parent,
 			Size = size,
 			Position = pos,
-			BackgroundColor3 = Color3.fromRGB(20, 28, 38),
+			BackgroundColor3 = Color3.fromRGB(20, 26, 34),
 			BorderSizePixel = 0,
 			ZIndex = 15002
 		})
@@ -534,8 +560,8 @@ function CustomizeLibrary(Window)
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 12, 0, 8),
 			Size = UDim2.new(1, -24, 0, 14),
-			Font = Enum.Font.Gotham,
-			TextColor3 = Color3.fromRGB(140, 140, 140),
+			Font = Enum.Font.GothamBold,
+			TextColor3 = Color3.fromRGB(240, 240, 240),
 			TextSize = 11,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Text = title,
@@ -548,15 +574,16 @@ function CustomizeLibrary(Window)
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 12, 0, 22),
 			Size = UDim2.new(1, -24, 1, -28),
-			Font = Enum.Font.GothamBold,
-			TextColor3 = Color3.fromRGB(240, 240, 240),
-			TextSize = 14,
+			Font = Enum.Font.Gotham,
+			TextColor3 = Color3.fromRGB(200, 200, 200),
+			TextSize = 13,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextWrapped = true,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			Text = value,
 			ZIndex = 15003
 		})
+		table.insert(StatCardValues, valLbl)
 		return valLbl
 	end
 
@@ -808,19 +835,19 @@ function CustomizeLibrary(Window)
 			SpotSeparator.BackgroundColor3 = SubColor
 
 			if DashboardOverlay.Visible then
-				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(13, 20, 28)
+				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(15, 20, 28)
 				local isDark = (windowBg.R + windowBg.G + windowBg.B) / 3 < 0.5
 
 				local cardBaseColor = Color3.new(
-					math.clamp(windowBg.R + (isDark and 0.04 or -0.04), 0, 1),
-					math.clamp(windowBg.G + (isDark and 0.04 or -0.04), 0, 1),
-					math.clamp(windowBg.B + (isDark and 0.04 or -0.04), 0, 1)
+					math.clamp(windowBg.R + (isDark and 0.035 or -0.035), 0, 1),
+					math.clamp(windowBg.G + (isDark and 0.035 or -0.035), 0, 1),
+					math.clamp(windowBg.B + (isDark and 0.035 or -0.035), 0, 1)
 				)
 
 				local boxFill = Color3.new(
-					math.clamp(windowBg.R + (isDark and 0.08 or -0.08), 0, 1),
-					math.clamp(windowBg.G + (isDark and 0.08 or -0.08), 0, 1),
-					math.clamp(windowBg.B + (isDark and 0.08 or -0.08), 0, 1)
+					math.clamp(windowBg.R + (isDark and 0.07 or -0.07), 0, 1),
+					math.clamp(windowBg.G + (isDark and 0.07 or -0.07), 0, 1),
+					math.clamp(windowBg.B + (isDark and 0.07 or -0.07), 0, 1)
 				)
 
 				local boxOutline = stroke and stroke.Color or SubColor
@@ -836,16 +863,12 @@ function CustomizeLibrary(Window)
 				end
 
 				for _, lbl in ipairs(StatCardTitles) do
-					lbl.TextColor3 = SubColor
+					lbl.TextColor3 = TargetTextColor
 				end
 
-				UptimeVal.TextColor3 = TargetTextColor
-				ExecutorVal.TextColor3 = TargetTextColor
-				FpsVal.TextColor3 = TargetTextColor
-				PingVal.TextColor3 = TargetTextColor
-				MemoryVal.TextColor3 = TargetTextColor
-				FriendsVal.TextColor3 = TargetTextColor
-				UserInfoVal.TextColor3 = TargetTextColor
+				for _, val in ipairs(StatCardValues) do
+					val.TextColor3 = SubColor
+				end
 			end
 
 			if GradientRef then
@@ -901,21 +924,11 @@ function CustomizeLibrary(Window)
 
 	local function PickFlashTarget(node)
 		if not node or typeof(node) ~= "Instance" then return nil end
-		local n = node
-		if n:IsA("TextLabel") then n = n.Parent end
-
-		local best = nil
-		local p = n
-		while p and not p:IsA("ScrollingFrame") do
-			if p:IsA("Frame") or p:IsA("TextButton") then
-				best = p
-				if p:FindFirstChildOfClass("UIStroke") or p:FindFirstChildOfClass("UICorner") then
-					break
-				end
-			end
-			p = p.Parent
+		local curr = node
+		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
+			curr = curr.Parent
 		end
-		return best or n
+		return curr or node
 	end
 
 	local function ScrollToTargetCentered(target)
@@ -941,19 +954,24 @@ function CustomizeLibrary(Window)
 
 		sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
 
-		local existingStroke = target:FindFirstChild("SearchFlashStroke")
-		if existingStroke then existingStroke:Destroy() end
+		local existingOverlay = target:FindFirstChild("SearchFlashOverlay")
+		if existingOverlay then existingOverlay:Destroy() end
+
+		local targetCorner = target:FindFirstChildOfClass("UICorner")
+		local cornerRadius = targetCorner and targetCorner.CornerRadius or UDim.new(0, 8)
 
 		local overlay = Instance.new("Frame")
 		overlay.Name = "SearchFlashOverlay"
 		overlay.BackgroundTransparency = 1
 		overlay.BorderSizePixel = 0
-		overlay.Size = UDim2.fromScale(1, 1)
-		overlay.Position = UDim2.fromScale(0, 0)
-		overlay.ZIndex = math.max((target.ZIndex or 1) + 5, 10)
+		overlay.Size = UDim2.new(1, -2, 1, -2)
+		overlay.Position = UDim2.new(0, 1, 0, 1)
+		overlay.ZIndex = math.max((target.ZIndex or 1) + 10, 20)
+		overlay.ClipsDescendants = false
 		overlay.Parent = target
 
-		Instance.new("UICorner", overlay).CornerRadius = UDim.new(0, 6)
+		local corner = Instance.new("UICorner", overlay)
+		corner.CornerRadius = cornerRadius
 
 		local stroke = Instance.new("UIStroke")
 		stroke.Name = "SearchFlashStroke"
@@ -985,7 +1003,8 @@ function CustomizeLibrary(Window)
 			target = FindVisualTargetByText(RootFrame, itemName)
 		end
 		if target then
-			local expander = SectionExpanders[target] or (target.Parent and SectionExpanders[target.Parent])
+			local topCard = PickFlashTarget(target)
+			local expander = (topCard and SectionExpanders[topCard]) or SectionExpanders[target]
 			if expander then
 				expander()
 				task.wait(0.05)
@@ -1188,15 +1207,10 @@ function CustomizeLibrary(Window)
 				end)
 
 				btn.MouseButton1Click:Connect(function()
-					local ok = pcall(function() Window:SelectTab(item.TabIndex) end)
-					if not ok then
-						for _, tb in pairs(TabHolder:GetChildren()) do
-							local tl = tb:FindFirstChildOfClass("TextLabel")
-							if tl and tl.Text == item.Tab then
-								for _, c in pairs(getconnections(tb.MouseButton1Click)) do c:Fire() end
-								break
-							end
-						end
+					pcall(function() Window:SelectTab(item.TabIndex) end)
+
+					if item.Section and SectionExpandersByTitle[item.Section:lower()] then
+						SectionExpandersByTitle[item.Section:lower()]()
 					end
 
 					TweenService:Create(SpotlightOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
@@ -1205,7 +1219,7 @@ function CustomizeLibrary(Window)
 					SpotlightOverlay.Visible = false
 					SpotInput.Text = ""
 
-					task.delay(0, function()
+					task.delay(0.08, function()
 						ScrollToElement(item.Name, item.Frame)
 					end)
 				end)
