@@ -435,7 +435,7 @@ function CustomizeLibrary(Window)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		Size = UDim2.fromOffset(460, 316),
-		BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+		BackgroundColor3 = Color3.fromRGB(13, 20, 28),
 		BorderSizePixel = 0,
 		Active = true,
 		ClipsDescendants = true,
@@ -473,17 +473,17 @@ function CustomizeLibrary(Window)
 		BackgroundTransparency = 1,
 		Text = "X",
 		Font = Enum.Font.GothamBold,
-		TextColor3 = Color3.fromRGB(180, 180, 180),
+		TextColor3 = Color3.fromRGB(240, 240, 240),
 		TextSize = 13,
 		ZIndex = 15003
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = DashClose})
 
 	DashClose.MouseEnter:Connect(function()
-		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 0.88, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 0.88}):Play()
 	end)
 	DashClose.MouseLeave:Connect(function()
-		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(180, 180, 180)}):Play()
+		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
 	end)
 
 	local StatCardFrames = {}
@@ -494,7 +494,7 @@ function CustomizeLibrary(Window)
 			Parent = parent,
 			Size = size,
 			Position = pos,
-			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+			BackgroundColor3 = Color3.fromRGB(18, 26, 36),
 			BorderSizePixel = 0,
 			ZIndex = 15002
 		})
@@ -541,7 +541,7 @@ function CustomizeLibrary(Window)
 		ZIndex = 15002
 	})
 
-	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "00h 00m 00s", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0, 0, 0, 0))
+	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "--", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0, 0, 0, 0))
 	local ExecutorVal = CreateStatCard("EXECUTOR", (identifyexecutor and identifyexecutor()) or "Unknown", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0.5, 6, 0, 0))
 
 	local FpsVal = CreateStatCard("CLIENT FPS", "-- FPS", ContentFrame, UDim2.new(0.33, -4, 0, 52), UDim2.new(0, 0, 0, 64))
@@ -604,24 +604,28 @@ function CustomizeLibrary(Window)
 		DashboardCard.Size = UDim2.fromOffset(440, 296)
 		TweenService:Create(DashboardCard, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(460, 316)}):Play()
 
-		UpdateDashboardTelemetry()
-
-		local frameCount = 0
-		local lastFpsTick = os.clock()
-
 		StopAllTelemetry()
 
-		fpsConn = RunService.RenderStepped:Connect(function()
-			frameCount += 1
-			local now = os.clock()
-			if now - lastFpsTick >= 1 then
-				FpsVal.Text = tostring(math.floor(frameCount / (now - lastFpsTick))) .. " FPS"
-				frameCount = 0
-				lastFpsTick = now
-			end
-		end)
-
 		dashboardLoopThread = task.spawn(function()
+			task.wait(1)
+			if not DashboardOverlay.Visible then return end
+
+			local frameCount = 0
+			local lastFpsTick = os.clock()
+
+			if fpsConn then fpsConn:Disconnect() end
+			fpsConn = RunService.RenderStepped:Connect(function()
+				frameCount += 1
+				local now = os.clock()
+				if now - lastFpsTick >= 1 then
+					FpsVal.Text = tostring(math.floor(frameCount / (now - lastFpsTick))) .. " FPS"
+					frameCount = 0
+					lastFpsTick = now
+				end
+			end)
+
+			UpdateDashboardTelemetry()
+
 			while DashboardOverlay.Visible do
 				task.wait(1)
 				if DashboardOverlay.Visible then
@@ -647,7 +651,19 @@ function CustomizeLibrary(Window)
 
 	AvatarButton.MouseButton1Click:Connect(OpenDashboard)
 	DashClose.MouseButton1Click:Connect(CloseDashboard)
-	DashboardOverlay.MouseButton1Click:Connect(CloseDashboard)
+
+	DashboardOverlay.MouseButton1Click:Connect(function()
+		local mousePos = UserInputService:GetMouseLocation()
+		local cardPos = DashboardCard.AbsolutePosition
+		local cardSize = DashboardCard.AbsoluteSize
+
+		if mousePos.X >= cardPos.X and mousePos.X <= cardPos.X + cardSize.X
+		and mousePos.Y >= cardPos.Y and mousePos.Y <= cardPos.Y + cardSize.Y then
+			return
+		end
+
+		CloseDashboard()
+	end)
 
 	local SpotlightOverlay = Create("Frame", {
 		Name = "SpotlightOverlay",
@@ -762,26 +778,28 @@ function CustomizeLibrary(Window)
 			SpotInput.PlaceholderColor3 = SubColor
 			SpotSeparator.BackgroundColor3 = SubColor
 
-			local windowBaseBg = RootFrame.BackgroundColor3
-			local darkCardBg = Color3.new(
-				math.clamp(windowBaseBg.R + 0.035, 0, 1),
-				math.clamp(windowBaseBg.G + 0.035, 0, 1),
-				math.clamp(windowBaseBg.B + 0.035, 0, 1)
-			)
-			local darkTileBg = Color3.new(
-				math.clamp(windowBaseBg.R + 0.07, 0, 1),
-				math.clamp(windowBaseBg.G + 0.07, 0, 1),
-				math.clamp(windowBaseBg.B + 0.07, 0, 1)
-			)
+			local sampleCard = nil
+			for _, inst in ipairs(RootFrame:GetDescendants()) do
+				if inst:IsA("Frame") and inst.Name ~= "SpotlightFrame" and inst.Name ~= "DashboardCard" and inst.Name ~= "UserProfile" then
+					if inst:FindFirstChildOfClass("UIStroke") and inst:FindFirstChildOfClass("UICorner") then
+						sampleCard = inst
+						break
+					end
+				end
+			end
 
-			DashboardCard.BackgroundColor3 = darkCardBg
+			local modalBg = Sidebar.BackgroundColor3
+			local cardFill = sampleCard and sampleCard.BackgroundColor3 or Color3.fromRGB(22, 30, 40)
+			local cardStrokeColor = (sampleCard and sampleCard:FindFirstChildOfClass("UIStroke")) and sampleCard:FindFirstChildOfClass("UIStroke").Color or SubColor
+
+			DashboardCard.BackgroundColor3 = modalBg
 			DashTitle.TextColor3 = TargetTextColor
-			DashClose.TextColor3 = SubColor
-			DashStroke.Color = SubColor
+			DashClose.TextColor3 = TargetTextColor
+			DashStroke.Color = cardStrokeColor
 
 			for _, item in ipairs(StatCardFrames) do
-				item.card.BackgroundColor3 = darkTileBg
-				item.stroke.Color = SubColor
+				item.card.BackgroundColor3 = cardFill
+				item.stroke.Color = cardStrokeColor
 			end
 
 			for _, lbl in ipairs(StatCardTitles) do
@@ -1247,15 +1265,15 @@ local function HookWindow(Window)
 
 			if not shouldMaximize then
 				selfObj.Maximized = false
-				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = savedPos,
 					Size = savedSize
 				}):Play()
 			else
-				savedPos = self.Root.Position
-				savedSize = self.Root.Size
+				savedPos = selfObj.Root.Position
+				savedSize = selfObj.Root.Size
 				selfObj.Maximized = true
-				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(1, 0, 1, 0)
 				}):Play()
