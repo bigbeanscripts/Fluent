@@ -366,8 +366,8 @@ function CustomizeLibrary(Window)
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 8, 1, -52),
-		Size = UDim2.new(1, -16, 0, 44),
+		Position = UDim2.new(0, 12, 1, -52),
+		Size = UDim2.new(0, Window.TabWidth or 160, 0, 44),
 		AutoButtonColor = false,
 		Text = "",
 		ZIndex = 5
@@ -378,7 +378,7 @@ function CustomizeLibrary(Window)
 	local Avatar = Create("ImageLabel", {
 		Parent = ProfileButton,
 		Size = UDim2.fromOffset(32, 32),
-		Position = UDim2.new(0, 8, 0.5, -16),
+		Position = UDim2.new(0, 6, 0.5, -16),
 		BackgroundColor3 = Color3.fromRGB(0,0,0),
 		BackgroundTransparency = 1,
 		Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100),
@@ -395,8 +395,8 @@ function CustomizeLibrary(Window)
 		TextColor3 = Color3.fromRGB(240, 240, 240),
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Position = UDim2.new(0, 48, 0, 6),
-		Size = UDim2.new(1, -52, 0, 14),
+		Position = UDim2.new(0, 44, 0, 6),
+		Size = UDim2.new(1, -48, 0, 14),
 		ZIndex = 6
 	})
 
@@ -408,8 +408,8 @@ function CustomizeLibrary(Window)
 		TextColor3 = Color3.fromRGB(160, 160, 160),
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Position = UDim2.new(0, 48, 0, 22),
-		Size = UDim2.new(1, -52, 0, 12),
+		Position = UDim2.new(0, 44, 0, 22),
+		Size = UDim2.new(1, -48, 0, 12),
 		ZIndex = 6
 	})
 
@@ -441,7 +441,7 @@ function CustomizeLibrary(Window)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		Size = UDim2.fromOffset(460, 316),
-		BackgroundColor3 = Sidebar.BackgroundColor3,
+		BackgroundColor3 = Color3.fromRGB(13, 20, 28),
 		BorderSizePixel = 0,
 		Active = true,
 		ClipsDescendants = true,
@@ -454,6 +454,7 @@ function CustomizeLibrary(Window)
 		Name = "CardBlocker",
 		Parent = DashboardCard,
 		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.new(0, 0, 0, 0),
 		BackgroundTransparency = 1,
 		Text = "",
 		AutoButtonColor = false,
@@ -511,7 +512,7 @@ function CustomizeLibrary(Window)
 			Parent = parent,
 			Size = size,
 			Position = pos,
-			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
+			BackgroundColor3 = Color3.fromRGB(20, 28, 38),
 			BorderSizePixel = 0,
 			ZIndex = 15002
 		})
@@ -558,14 +559,14 @@ function CustomizeLibrary(Window)
 		ZIndex = 15002
 	})
 
-	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "--", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0, 0, 0, 0))
+	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "00h 00m 00s", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0, 0, 0, 0))
 	local ExecutorVal = CreateStatCard("EXECUTOR", (identifyexecutor and identifyexecutor()) or "Unknown", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0.5, 6, 0, 0))
 
 	local FpsVal = CreateStatCard("CLIENT FPS", "-- FPS", ContentFrame, UDim2.new(0.33, -4, 0, 52), UDim2.new(0, 0, 0, 64))
 	local PingVal = CreateStatCard("SERVER PING", "-- ms", ContentFrame, UDim2.new(0.33, -4, 0, 52), UDim2.new(0.33, 4, 0, 64))
 	local MemoryVal = CreateStatCard("MEMORY", "-- MB", ContentFrame, UDim2.new(0.33, -4, 0, 52), UDim2.new(0.66, 8, 0, 64))
 
-	local FriendsVal = CreateStatCard("FRIENDS IN SERVER", "None", ContentFrame, UDim2.new(1, 0, 0, 52), UDim2.new(0, 0, 0, 124))
+	local FriendsVal = CreateStatCard("FRIENDS IN SERVER", "None in this server", ContentFrame, UDim2.new(1, 0, 0, 52), UDim2.new(0, 0, 0, 124))
 	local UserInfoVal = CreateStatCard("ACCOUNT DETAILS", "ID: " .. tostring(LocalPlayer.UserId) .. " | Age: " .. tostring(LocalPlayer.AccountAge) .. " days", ContentFrame, UDim2.new(1, 0, 0, 52), UDim2.new(0, 0, 0, 184))
 
 	local dashboardLoopThread = nil
@@ -623,12 +624,6 @@ function CustomizeLibrary(Window)
 
 		StopAllTelemetry()
 
-		UptimeVal.Text = "--"
-		FpsVal.Text = "-- FPS"
-		PingVal.Text = "-- ms"
-		MemoryVal.Text = "-- MB"
-		FriendsVal.Text = "Scanning..."
-
 		dashboardLoopThread = task.spawn(function()
 			task.wait(1)
 			if not DashboardOverlay.Visible then return end
@@ -674,7 +669,19 @@ function CustomizeLibrary(Window)
 
 	ProfileButton.MouseButton1Click:Connect(OpenDashboard)
 	DashClose.MouseButton1Click:Connect(CloseDashboard)
-	DashboardOverlay.MouseButton1Click:Connect(CloseDashboard)
+
+	DashboardOverlay.MouseButton1Click:Connect(function()
+		local mouse = UserInputService:GetMouseLocation()
+		local cardPos = DashboardCard.AbsolutePosition
+		local cardSize = DashboardCard.AbsoluteSize
+
+		if mouse.X >= cardPos.X and mouse.X <= cardPos.X + cardSize.X
+		and mouse.Y >= cardPos.Y and mouse.Y <= cardPos.Y + cardSize.Y then
+			return
+		end
+
+		CloseDashboard()
+	end)
 
 	local SpotlightOverlay = Create("Frame", {
 		Name = "SpotlightOverlay",
@@ -790,30 +797,32 @@ function CustomizeLibrary(Window)
 			SpotSeparator.BackgroundColor3 = SubColor
 
 			if DashboardOverlay.Visible then
-				local sampleCard = nil
-				for _, inst in ipairs(RootFrame:GetDescendants()) do
-					if inst:IsA("Frame") and inst.Name ~= "SpotlightFrame" and inst.Name ~= "DashboardCard" and inst.Name ~= "UserProfile" then
-						local str = inst:FindFirstChildOfClass("UIStroke")
-						local cor = inst:FindFirstChildOfClass("UICorner")
-						if str and cor and inst.BackgroundTransparency < 1 then
-							sampleCard = inst
-							break
-						end
-					end
-				end
+				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(13, 20, 28)
+				local isDark = (windowBg.R + windowBg.G + windowBg.B) / 3 < 0.5
 
-				local modalBase = Sidebar.BackgroundColor3
-				local cardBg = sampleCard and sampleCard.BackgroundColor3 or Color3.fromRGB(20, 28, 38)
-				local strokeCol = (sampleCard and sampleCard:FindFirstChildOfClass("UIStroke")) and sampleCard:FindFirstChildOfClass("UIStroke").Color or SubColor
+				local cardBaseColor = Color3.new(
+					math.clamp(windowBg.R + (isDark and 0.04 or -0.04), 0, 1),
+					math.clamp(windowBg.G + (isDark and 0.04 or -0.04), 0, 1),
+					math.clamp(windowBg.B + (isDark and 0.04 or -0.04), 0, 1)
+				)
 
-				DashboardCard.BackgroundColor3 = modalBase
+				local boxFill = Color3.new(
+					math.clamp(windowBg.R + (isDark and 0.08 or -0.08), 0, 1),
+					math.clamp(windowBg.G + (isDark and 0.08 or -0.08), 0, 1),
+					math.clamp(windowBg.B + (isDark and 0.08 or -0.08), 0, 1)
+				)
+
+				local stroke = RootFrame:FindFirstChild("UIStroke")
+				local boxOutline = stroke and stroke.Color or SubColor
+
+				DashboardCard.BackgroundColor3 = cardBaseColor
 				DashTitle.TextColor3 = TargetTextColor
 				DashClose.TextColor3 = TargetTextColor
-				DashStroke.Color = strokeCol
+				DashStroke.Color = boxOutline
 
 				for _, item in ipairs(StatCardFrames) do
-					item.card.BackgroundColor3 = cardBg
-					item.stroke.Color = strokeCol
+					item.card.BackgroundColor3 = boxFill
+					item.stroke.Color = boxOutline
 				end
 
 				for _, lbl in ipairs(StatCardTitles) do
