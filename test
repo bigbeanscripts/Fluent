@@ -12,6 +12,8 @@ local SearchIndex = {}
 local ObjectSet = {}
 local SectionExpanders = {}
 local SectionExpandersByTitle = {}
+local AllSectionTitles = {}
+local TargetTextColor = Color3.fromRGB(240, 240, 240)
 
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
@@ -37,26 +39,11 @@ local function GetFrameFromElement(Element)
 end
 
 local function GetScrollFrame(obj)
-	if type(obj) == "table" then
-		for _, k in ipairs({"Container", "Frame", "Scroll", "Page", "Holder", "Root"}) do
-			local success, val = pcall(function() return obj[k] end)
-			if success and typeof(val) == "Instance" then
-				if val:IsA("ScrollingFrame") then
-					return val
-				end
-				local sf = val:FindFirstChildWhichIsA("ScrollingFrame", true)
-				if sf then return sf end
-			end
-		end
-	end
-	if Library.CurrentWindow and Library.CurrentWindow.Root then
-		local holder = Library.CurrentWindow.Root:FindFirstChild("ContainerHolder", true)
-		if holder then
-			for _, page in ipairs(holder:GetChildren()) do
-				if page:IsA("ScrollingFrame") and page.Visible then
-					return page
-				end
-			end
+	if type(obj) ~= "table" then return nil end
+	for _, k in ipairs({"Container", "Frame", "Scroll", "Page", "Holder", "Root"}) do
+		local val = rawget(obj, k)
+		if typeof(val) == "Instance" and val:IsA("ScrollingFrame") then
+			return val
 		end
 	end
 	return nil
@@ -188,7 +175,6 @@ local function HookContainer(container, ctx)
 
 			local childFrames = {}
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
-			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
 			local arrowIcon = nil
 
 			local function SetExpanded(state)
@@ -218,12 +204,13 @@ local function HookContainer(container, ctx)
 			if titleLabel then
 				titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 				titleLabel.Size = UDim2.new(1, 0, 0, 18)
+				table.insert(AllSectionTitles, titleLabel)
 
 				arrowIcon = Instance.new("ImageLabel")
 				arrowIcon.Name = "CollapseArrow"
 				arrowIcon.BackgroundTransparency = 1
 				arrowIcon.Image = "rbxassetid://10709790948"
-				arrowIcon.ImageColor3 = originalColor
+				arrowIcon.ImageColor3 = TargetTextColor
 				arrowIcon.Size = UDim2.fromOffset(14, 14)
 				arrowIcon.AnchorPoint = Vector2.new(1, 0.5)
 				arrowIcon.Position = UDim2.new(1, -6, 0.5, 0)
@@ -247,8 +234,8 @@ local function HookContainer(container, ctx)
 				end)
 
 				triggerBtn.MouseLeave:Connect(function()
-					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = originalColor}):Play()
-					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = originalColor}):Play()
+					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = TargetTextColor}):Play()
+					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = TargetTextColor}):Play()
 				end)
 
 				triggerBtn.MouseButton1Click:Connect(function()
@@ -475,7 +462,7 @@ function CustomizeLibrary(Window)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		Size = UDim2.fromOffset(460, 316),
-		BackgroundColor3 = Color3.fromRGB(14, 18, 24),
+		BackgroundColor3 = Color3.fromRGB(13, 20, 28),
 		BorderSizePixel = 0,
 		Active = true,
 		ClipsDescendants = true,
@@ -547,7 +534,7 @@ function CustomizeLibrary(Window)
 			Parent = parent,
 			Size = size,
 			Position = pos,
-			BackgroundColor3 = Color3.fromRGB(20, 26, 34),
+			BackgroundColor3 = Color3.fromRGB(20, 28, 38),
 			BorderSizePixel = 0,
 			ZIndex = 15002
 		})
@@ -810,7 +797,6 @@ function CustomizeLibrary(Window)
 				end
 			end
 
-			local TargetTextColor = Color3.fromRGB(240, 240, 240)
 			local TargetBgColor = Color3.fromRGB(30, 30, 30)
 
 			if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
@@ -834,20 +820,29 @@ function CustomizeLibrary(Window)
 			SpotInput.PlaceholderColor3 = SubColor
 			SpotSeparator.BackgroundColor3 = SubColor
 
+			for _, secTitle in ipairs(AllSectionTitles) do
+				if secTitle and secTitle.Parent then
+					secTitle.TextColor3 = TargetTextColor
+					local arrow = secTitle:FindFirstChild("CollapseArrow")
+					if arrow then
+						arrow.ImageColor3 = TargetTextColor
+					end
+				end
+			end
+
 			if DashboardOverlay.Visible then
 				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(15, 20, 28)
-				local isDark = (windowBg.R + windowBg.G + windowBg.B) / 3 < 0.5
 
 				local cardBaseColor = Color3.new(
-					math.clamp(windowBg.R + (isDark and 0.035 or -0.035), 0, 1),
-					math.clamp(windowBg.G + (isDark and 0.035 or -0.035), 0, 1),
-					math.clamp(windowBg.B + (isDark and 0.035 or -0.035), 0, 1)
+					math.clamp(windowBg.R * 0.72, 0, 1),
+					math.clamp(windowBg.G * 0.72, 0, 1),
+					math.clamp(windowBg.B * 0.72, 0, 1)
 				)
 
 				local boxFill = Color3.new(
-					math.clamp(windowBg.R + (isDark and 0.07 or -0.07), 0, 1),
-					math.clamp(windowBg.G + (isDark and 0.07 or -0.07), 0, 1),
-					math.clamp(windowBg.B + (isDark and 0.07 or -0.07), 0, 1)
+					math.clamp(windowBg.R * 0.48, 0, 1),
+					math.clamp(windowBg.G * 0.48, 0, 1),
+					math.clamp(windowBg.B * 0.48, 0, 1)
 				)
 
 				local boxOutline = stroke and stroke.Color or SubColor
@@ -860,6 +855,7 @@ function CustomizeLibrary(Window)
 				for _, item in ipairs(StatCardFrames) do
 					item.card.BackgroundColor3 = boxFill
 					item.stroke.Color = boxOutline
+					item.stroke.Transparency = 0.75
 				end
 
 				for _, lbl in ipairs(StatCardTitles) do
