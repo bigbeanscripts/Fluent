@@ -360,63 +360,60 @@ function CustomizeLibrary(Window)
 		Size = UDim2.new(1, -32, 1, 0)
 	})
 
-	local ProfileButton = Create("TextButton", {
+	local ProfileContainer = Create("Frame", {
 		Name = "UserProfile",
 		Parent = Sidebar,
-		BackgroundColor3 = Sidebar.BackgroundColor3,
 		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 8, 1, -52),
-		Size = UDim2.new(1, -16, 0, 46),
-		AutoButtonColor = false,
-		Text = "",
+		Position = UDim2.new(0, 12, 1, -48),
+		Size = UDim2.new(1, -24, 0, 36),
 		ZIndex = 5
 	})
-	Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = ProfileButton})
-	local ProfileStroke = Create("UIStroke", {Thickness = 1, Transparency = 1, Color = Color3.fromRGB(255, 255, 255), Parent = ProfileButton})
 
-	local Avatar = Create("ImageLabel", {
-		Parent = ProfileButton,
-		Size = UDim2.fromOffset(30, 30),
-		Position = UDim2.new(0, 8, 0.5, -15),
+	local AvatarButton = Create("ImageButton", {
+		Name = "AvatarButton",
+		Parent = ProfileContainer,
+		Size = UDim2.fromOffset(32, 32),
+		Position = UDim2.new(0, 0, 0.5, -16),
 		BackgroundColor3 = Color3.fromRGB(0,0,0),
 		BackgroundTransparency = 1,
-		Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+		AutoButtonColor = false,
+		Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100),
+		ZIndex = 6
 	})
-	Create("UICorner", {CornerRadius = UDim.new(1,0), Parent = Avatar})
-	local AvatarStroke = Create("UIStroke", {Thickness = 1, Transparency = 0.5, Parent = Avatar, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})
+	Create("UICorner", {CornerRadius = UDim.new(1,0), Parent = AvatarButton})
+	local AvatarStroke = Create("UIStroke", {Thickness = 1.5, Transparency = 0.6, Color = Color3.fromRGB(255, 255, 255), Parent = AvatarButton, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})
 
 	local DisplayName = Create("TextLabel", {
-		Parent = ProfileButton,
+		Parent = ProfileContainer,
 		BackgroundTransparency = 1,
 		Text = LocalPlayer.DisplayName,
 		Font = Enum.Font.GothamBold,
 		TextColor3 = Color3.fromRGB(240, 240, 240),
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Position = UDim2.new(0, 46, 0, 7),
-		Size = UDim2.new(1, -50, 0, 14)
+		Position = UDim2.new(0, 40, 0, 2),
+		Size = UDim2.new(1, -42, 0, 14),
+		ZIndex = 5
 	})
 
 	local UserName = Create("TextLabel", {
-		Parent = ProfileButton,
+		Parent = ProfileContainer,
 		BackgroundTransparency = 1,
 		Text = "@" .. LocalPlayer.Name,
 		Font = Enum.Font.Gotham,
 		TextColor3 = Color3.fromRGB(160, 160, 160),
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		Position = UDim2.new(0, 46, 0, 23),
-		Size = UDim2.new(1, -50, 0, 12)
+		Position = UDim2.new(0, 40, 0, 18),
+		Size = UDim2.new(1, -42, 0, 12),
+		ZIndex = 5
 	})
 
-	ProfileButton.MouseEnter:Connect(function()
-		TweenService:Create(ProfileButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.9}):Play()
-		TweenService:Create(ProfileStroke, TweenInfo.new(0.2), {Transparency = 0.8}):Play()
+	AvatarButton.MouseEnter:Connect(function()
+		TweenService:Create(AvatarStroke, TweenInfo.new(0.15), {Transparency = 0, Thickness = 2}):Play()
 	end)
-	ProfileButton.MouseLeave:Connect(function()
-		TweenService:Create(ProfileButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(ProfileStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+	AvatarButton.MouseLeave:Connect(function()
+		TweenService:Create(AvatarStroke, TweenInfo.new(0.15), {Transparency = 0.6, Thickness = 1.5}):Play()
 	end)
 
 	local DashboardOverlay = Create("TextButton", {
@@ -433,12 +430,14 @@ function CustomizeLibrary(Window)
 	})
 
 	local DashboardCard = Create("Frame", {
+		Name = "DashboardCard",
 		Parent = DashboardOverlay,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		Size = UDim2.fromOffset(460, 316),
-		BackgroundColor3 = Color3.fromRGB(26, 26, 26),
+		BackgroundColor3 = Color3.fromRGB(24, 24, 24),
 		BorderSizePixel = 0,
+		Active = true,
 		ClipsDescendants = true,
 		ZIndex = 15001
 	})
@@ -469,14 +468,23 @@ function CustomizeLibrary(Window)
 		Parent = DashTopBar,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 0),
-		Size = UDim2.fromOffset(24, 24),
+		Size = UDim2.fromOffset(26, 26),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 1,
 		Text = "X",
 		Font = Enum.Font.GothamBold,
-		TextColor3 = Color3.fromRGB(160, 160, 160),
+		TextColor3 = Color3.fromRGB(180, 180, 180),
 		TextSize = 13,
 		ZIndex = 15003
 	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = DashClose})
+
+	DashClose.MouseEnter:Connect(function()
+		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 0.88, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+	end)
+	DashClose.MouseLeave:Connect(function()
+		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(180, 180, 180)}):Play()
+	end)
 
 	local StatCardFrames = {}
 	local StatCardTitles = {}
@@ -486,12 +494,12 @@ function CustomizeLibrary(Window)
 			Parent = parent,
 			Size = size,
 			Position = pos,
-			BackgroundColor3 = Color3.fromRGB(34, 34, 34),
+			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
 			BorderSizePixel = 0,
 			ZIndex = 15002
 		})
 		Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = card})
-		local cardStr = Create("UIStroke", {Thickness = 1, Transparency = 0.88, Color = Color3.fromRGB(255, 255, 255), Parent = card})
+		local cardStr = Create("UIStroke", {Thickness = 1, Transparency = 0.85, Color = Color3.fromRGB(255, 255, 255), Parent = card})
 		table.insert(StatCardFrames, {card = card, stroke = cardStr})
 
 		local titleLbl = Create("TextLabel", {
@@ -579,6 +587,17 @@ function CustomizeLibrary(Window)
 		end
 	end
 
+	local function StopAllTelemetry()
+		if fpsConn then
+			fpsConn:Disconnect()
+			fpsConn = nil
+		end
+		if dashboardLoopThread then
+			task.cancel(dashboardLoopThread)
+			dashboardLoopThread = nil
+		end
+	end
+
 	local function OpenDashboard()
 		DashboardOverlay.Visible = true
 		TweenService:Create(DashboardOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.55}):Play()
@@ -590,7 +609,8 @@ function CustomizeLibrary(Window)
 		local frameCount = 0
 		local lastFpsTick = os.clock()
 
-		if fpsConn then fpsConn:Disconnect() end
+		StopAllTelemetry()
+
 		fpsConn = RunService.RenderStepped:Connect(function()
 			frameCount += 1
 			local now = os.clock()
@@ -601,7 +621,6 @@ function CustomizeLibrary(Window)
 			end
 		end)
 
-		if dashboardLoopThread then task.cancel(dashboardLoopThread) end
 		dashboardLoopThread = task.spawn(function()
 			while DashboardOverlay.Visible do
 				task.wait(1)
@@ -613,26 +632,22 @@ function CustomizeLibrary(Window)
 	end
 
 	local function CloseDashboard()
-		if fpsConn then
-			fpsConn:Disconnect()
-			fpsConn = nil
-		end
-		if dashboardLoopThread then
-			task.cancel(dashboardLoopThread)
-			dashboardLoopThread = nil
-		end
-
+		StopAllTelemetry()
 		TweenService:Create(DashboardOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
 		TweenService:Create(DashboardCard, TweenInfo.new(0.15), {Size = UDim2.fromOffset(440, 296)}):Play()
 		task.wait(0.15)
 		DashboardOverlay.Visible = false
 	end
 
-	ProfileButton.MouseButton1Click:Connect(OpenDashboard)
-	DashClose.MouseButton1Click:Connect(CloseDashboard)
-	DashboardOverlay.MouseButton1Click:Connect(function()
-		CloseDashboard()
+	DashboardOverlay:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not DashboardOverlay.Visible then
+			StopAllTelemetry()
+		end
 	end)
+
+	AvatarButton.MouseButton1Click:Connect(OpenDashboard)
+	DashClose.MouseButton1Click:Connect(CloseDashboard)
+	DashboardOverlay.MouseButton1Click:Connect(CloseDashboard)
 
 	local SpotlightOverlay = Create("Frame", {
 		Name = "SpotlightOverlay",
@@ -747,19 +762,25 @@ function CustomizeLibrary(Window)
 			SpotInput.PlaceholderColor3 = SubColor
 			SpotSeparator.BackgroundColor3 = SubColor
 
-			DashboardCard.BackgroundColor3 = TargetBgColor
+			local windowBaseBg = RootFrame.BackgroundColor3
+			local darkCardBg = Color3.new(
+				math.clamp(windowBaseBg.R + 0.035, 0, 1),
+				math.clamp(windowBaseBg.G + 0.035, 0, 1),
+				math.clamp(windowBaseBg.B + 0.035, 0, 1)
+			)
+			local darkTileBg = Color3.new(
+				math.clamp(windowBaseBg.R + 0.07, 0, 1),
+				math.clamp(windowBaseBg.G + 0.07, 0, 1),
+				math.clamp(windowBaseBg.B + 0.07, 0, 1)
+			)
+
+			DashboardCard.BackgroundColor3 = darkCardBg
 			DashTitle.TextColor3 = TargetTextColor
 			DashClose.TextColor3 = SubColor
 			DashStroke.Color = SubColor
 
-			local cardInnerBg = Color3.new(
-				math.clamp(TargetBgColor.R + 0.04, 0, 1),
-				math.clamp(TargetBgColor.G + 0.04, 0, 1),
-				math.clamp(TargetBgColor.B + 0.04, 0, 1)
-			)
-
 			for _, item in ipairs(StatCardFrames) do
-				item.card.BackgroundColor3 = cardInnerBg
+				item.card.BackgroundColor3 = darkTileBg
 				item.stroke.Color = SubColor
 			end
 
@@ -1226,15 +1247,15 @@ local function HookWindow(Window)
 
 			if not shouldMaximize then
 				selfObj.Maximized = false
-				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = savedPos,
 					Size = savedSize
 				}):Play()
 			else
-				savedPos = selfObj.Root.Position
-				savedSize = selfObj.Root.Size
+				savedPos = self.Root.Position
+				savedSize = self.Root.Size
 				selfObj.Maximized = true
-				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(1, 0, 1, 0)
 				}):Play()
