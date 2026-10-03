@@ -10,6 +10,7 @@ local ScriptStartTime = os.clock()
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local SearchIndex = {}
 local ObjectSet = {}
+local SectionExpanders = {}
 
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
@@ -172,6 +173,21 @@ local function HookContainer(container, ctx)
 			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
 			local arrowIcon = nil
 
+			local function SetExpanded(state)
+				if isExpanded == state then return end
+				isExpanded = state
+				if arrowIcon then
+					TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Rotation = isExpanded and 0 or 180
+					}):Play()
+				end
+				for _, fr in ipairs(childFrames) do
+					if fr and fr.Parent then
+						fr.Visible = isExpanded
+					end
+				end
+			end
+
 			if titleLabel then
 				titleLabel.AutomaticSize = Enum.AutomaticSize.Y
 				titleLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -209,17 +225,7 @@ local function HookContainer(container, ctx)
 				end)
 
 				triggerBtn.MouseButton1Click:Connect(function()
-					isExpanded = not isExpanded
-
-					TweenService:Create(arrowIcon, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Rotation = isExpanded and 0 or 180
-					}):Play()
-
-					for _, fr in ipairs(childFrames) do
-						if fr and fr:IsA("GuiObject") then
-							fr.Visible = isExpanded
-						end
-					end
+					SetExpanded(not isExpanded)
 				end)
 			end
 
@@ -239,6 +245,9 @@ local function HookContainer(container, ctx)
 							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
 								itemFrame.Visible = isExpanded
 								table.insert(childFrames, itemFrame)
+								SectionExpanders[itemFrame] = function()
+									SetExpanded(true)
+								end
 							end
 						end
 					end
@@ -780,11 +789,13 @@ function CustomizeLibrary(Window)
 			if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
 			if SettingsButtonRef then
 				TargetBgColor = SettingsButtonRef.BackgroundColor3
-				CurrentFlashColor = TargetBgColor
 			end
 
 			local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
 			local SubColor = (brightness > 0.5) and Color3.fromRGB(160, 160, 160) or Color3.fromRGB(100, 100, 100)
+
+			local stroke = RootFrame:FindFirstChild("UIStroke")
+			CurrentFlashColor = stroke and stroke.Color or SubColor
 
 			SearchText.TextColor3 = TargetTextColor
 			SearchIcon.ImageColor3 = TargetTextColor
@@ -812,7 +823,6 @@ function CustomizeLibrary(Window)
 					math.clamp(windowBg.B + (isDark and 0.08 or -0.08), 0, 1)
 				)
 
-				local stroke = RootFrame:FindFirstChild("UIStroke")
 				local boxOutline = stroke and stroke.Color or SubColor
 
 				DashboardCard.BackgroundColor3 = cardBaseColor
@@ -846,11 +856,11 @@ function CustomizeLibrary(Window)
 				SpotlightFrame.BackgroundColor3 = TargetBgColor
 			end
 
-			local stroke = RootFrame:FindFirstChild("UIStroke")
 			if stroke then
 				SearchStroke.Color = stroke.Color
 				AvatarStroke.Color = stroke.Color
 				SpotlightStroke.Color = stroke.Color
+				DashStroke.Color = stroke.Color
 			else
 				SearchStroke.Transparency = 1
 			end
@@ -931,23 +941,22 @@ function CustomizeLibrary(Window)
 
 		sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
 
+		local existingStroke = target:FindFirstChild("SearchFlashStroke")
+		if existingStroke then existingStroke:Destroy() end
+
 		local overlay = Instance.new("Frame")
 		overlay.Name = "SearchFlashOverlay"
 		overlay.BackgroundTransparency = 1
 		overlay.BorderSizePixel = 0
-		overlay.ZIndex = 99999
-		overlay.Parent = RootFrame
-
-		local rootAbs = RootFrame.AbsolutePosition
-		local absPos = target.AbsolutePosition
-		local absSize = target.AbsoluteSize
-
-		overlay.Position = UDim2.fromOffset(absPos.X - rootAbs.X, absPos.Y - rootAbs.Y)
-		overlay.Size = UDim2.fromOffset(absSize.X, absSize.Y)
+		overlay.Size = UDim2.fromScale(1, 1)
+		overlay.Position = UDim2.fromScale(0, 0)
+		overlay.ZIndex = math.max((target.ZIndex or 1) + 5, 10)
+		overlay.Parent = target
 
 		Instance.new("UICorner", overlay).CornerRadius = UDim.new(0, 6)
 
 		local stroke = Instance.new("UIStroke")
+		stroke.Name = "SearchFlashStroke"
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Thickness = 2
 		stroke.Color = CurrentFlashColor
@@ -974,6 +983,13 @@ function CustomizeLibrary(Window)
 		local target = frameObj
 		if not target then
 			target = FindVisualTargetByText(RootFrame, itemName)
+		end
+		if target then
+			local expander = SectionExpanders[target] or (target.Parent and SectionExpanders[target.Parent])
+			if expander then
+				expander()
+				task.wait(0.05)
+			end
 		end
 		ScrollToTargetCentered(target)
 	end
