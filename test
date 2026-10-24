@@ -1,3 +1,5 @@
+--- START OF FILE Paste October 24, 2026 - 5:40PM ---
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -24,7 +26,7 @@ local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window
 local SIDEBAR_SIDE_PAD = 12
 local SEARCH_TOP = 56
 local SEARCH_HEIGHT = 32
-local TABS_TOP = 96
+local TABS_TOP = 92
 local PROFILE_HEIGHT = 44
 local PROFILE_BOTTOM_MARGIN = 8
 local TABS_PROFILE_GAP = 6
@@ -201,7 +203,6 @@ local function HookContainer(container, ctx)
 
 			local childFrames = {}
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
-			local originalColor = titleLabel and titleLabel.TextColor3 or Color3.fromRGB(240, 240, 240)
 			local arrowIcon = nil
 
 			local function SetExpanded(state)
@@ -408,7 +409,7 @@ local function CustomizeLibrary(Window)
 	TabHolder.ClipsDescendants = true
 	TabHolder.ScrollingDirection = Enum.ScrollingDirection.Y
 
-	local PAD_TOP, PAD_BOTTOM = 4, 2
+	local PAD_TOP, PAD_BOTTOM = 2, 2
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
 	ListPadding.PaddingTop = UDim.new(0, PAD_TOP)
 	ListPadding.PaddingBottom = UDim.new(0, PAD_BOTTOM)
@@ -1070,7 +1071,7 @@ local function CustomizeLibrary(Window)
 	local function PickFlashTarget(node)
 		if not node or typeof(node) ~= "Instance" then return nil end
 		local curr = node
-		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
+		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") then
 			curr = curr.Parent
 		end
 		return curr or node
@@ -1442,6 +1443,19 @@ local function HookWindow(Window)
 		end)
 	end
 
+	local selectorSearchAttempts = 0
+
+	local function InExcludedTree(inst)
+		local p = inst.Parent
+		while p and p ~= Window.Root do
+			if p.Name == "ContainerHolder" or p.Name == "DashboardOverlay" or p.Name == "SpotlightOverlay" or p:IsA("GuiButton") then
+				return true
+			end
+			p = p.Parent
+		end
+		return false
+	end
+
 	local function FindSelector()
 		if SelectorCache and SelectorCache.Parent then return SelectorCache end
 		SelectorCache = nil
@@ -1449,21 +1463,41 @@ local function HookWindow(Window)
 			SelectorCache = Window.Selector
 			return SelectorCache
 		end
+		if not Window.Root or selectorSearchAttempts >= 15 then return nil end
 		if os.clock() - lastSelectorSearch < 1 then return nil end
 		lastSelectorSearch = os.clock()
-		local holder = Window.TabHolder
-		if not holder then return nil end
-		for _, parent in ipairs({holder.Parent, holder}) do
-			if parent then
-				for _, c in ipairs(parent:GetChildren()) do
-					if c:IsA("Frame") and c.Size.X.Scale == 0 and c.Size.X.Offset >= 2 and c.Size.X.Offset <= 6 then
-						SelectorCache = c
-						return c
-					end
+		selectorSearchAttempts += 1
+
+		local sizeMatch = nil
+		for _, d in ipairs(Window.Root:GetDescendants()) do
+			if d:IsA("GuiObject") and not d:IsA("GuiButton") and not d:IsA("TextLabel") and not d:IsA("TextBox") and not d:IsA("ScrollingFrame") and not InExcludedTree(d) then
+				if d.Name == "Selector" then
+					SelectorCache = d
+					return d
+				end
+				local w, h = d.Size.X, d.Size.Y
+				if not sizeMatch and w.Scale == 0 and w.Offset >= 2 and w.Offset <= 6 and h.Scale == 0 and h.Offset <= 40 then
+					sizeMatch = d
 				end
 			end
 		end
-		return nil
+		SelectorCache = sizeMatch
+		return sizeMatch
+	end
+
+	local function SelectorIsOrphaned(sel)
+		local h = sel.AbsoluteSize.Y
+		if h <= 0 then return false end
+		local center = sel.AbsolutePosition.Y + h / 2
+		for _, obj in ipairs(SidebarOrder) do
+			if obj.Parent and obj.Visible then
+				local top = obj.AbsolutePosition.Y
+				if center >= top - 3 and center <= top + obj.AbsoluteSize.Y + 3 then
+					return false
+				end
+			end
+		end
+		return true
 	end
 
 	Window.SyncSelector = function()
@@ -1476,7 +1510,7 @@ local function HookWindow(Window)
 		elseif type(current) == "table" then
 			sec = TabSectionByObject[current]
 		end
-		local hide = sec ~= nil and not sec.Expanded
+		local hide = (sec ~= nil and not sec.Expanded) or SelectorIsOrphaned(sel)
 		if hide then
 			if sel.Visible then
 				sel.Visible = false
