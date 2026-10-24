@@ -18,7 +18,6 @@ end
 local ScriptStartTime = os.clock()
 local Library
 
--- Safe multi-source loader for Fluent-Renewed
 SafeCall("LibraryLoad", function()
 	local sources = {
 		"https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau",
@@ -1671,7 +1670,9 @@ local function HookWindow(Window)
 		end)
 	end
 
-	Window.AddTab = function(self, tabOptions)
+	Window.AddTab = function(self, ...)
+		local args = {...}
+		local tabOptions = args[1] or {}
 		local success, Tab = pcall(function()
 			CurrentTabIndex += 1
 			local ThisTabIndex = CurrentTabIndex
@@ -1682,7 +1683,7 @@ local function HookWindow(Window)
 				for _, c in ipairs(holder:GetChildren()) do before[c] = true end
 			end
 
-			local tabObj = OriginalAddTab(self, tabOptions)
+			local tabObj = OriginalAddTab(self, unpack(args))
 
 			if holder then
 				for _, c in ipairs(holder:GetChildren()) do
@@ -1732,7 +1733,11 @@ local function HookWindow(Window)
 	end
 
 	if Window.TabHolder then
-		Window.AddTabSection = function(self, sectionTitle, defaultExpanded)
+		Window.AddTabSection = function(self, ...)
+			local args = {...}
+			local sectionTitle = args[1]
+			local defaultExpanded = args[2]
+
 			local success, sectionObj = pcall(function()
 				local sec = {Tabs = {}, Expanded = defaultExpanded ~= false}
 
@@ -1835,8 +1840,8 @@ local function HookWindow(Window)
 		end
 
 		Window.Maximize = function(self, ...)
+			local args = {...}
 			SafeCall("Maximize", function()
-				local args = {...}
 				local selfObj = self or Window
 				local targetState = nil
 
@@ -1984,8 +1989,8 @@ local function HookWindow(Window)
 	return Window
 end
 
-Library.CreateWindow = function(self, options)
-	local success, Window = pcall(OriginalCreateWindow, self, options)
+Library.CreateWindow = function(self, ...)
+	local success, Window = pcall(OriginalCreateWindow, self, ...)
 	if not success then
 		warn("[UI Error][CreateWindow]: Failed to create window.")
 		return nil
@@ -1996,8 +2001,8 @@ Library.CreateWindow = function(self, options)
 end
 
 if OriginalWindowCtor then
-	Library.Window = function(self, options)
-		local success, Window = pcall(OriginalWindowCtor, self, options)
+	Library.Window = function(self, ...)
+		local success, Window = pcall(OriginalWindowCtor, self, ...)
 		if not success then
 			warn("[UI Error][Library.Window]: Failed to create window constructor.")
 			return nil
