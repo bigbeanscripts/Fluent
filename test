@@ -18,6 +18,15 @@ local TargetTextColor = Color3.fromRGB(240, 240, 240)
 local OriginalCreateWindow = Library.CreateWindow
 local OriginalWindowCtor = type(Library.Window) == "function" and Library.Window or nil
 
+local SIDEBAR_SIDE_PAD = 12
+local SEARCH_TOP = 56
+local SEARCH_HEIGHT = 32
+local TABS_TOP = 96
+local PROFILE_HEIGHT = 44
+local PROFILE_BOTTOM_MARGIN = 8
+local TABS_PROFILE_GAP = 6
+local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
+
 local function GetTitle(arg1, arg2)
 	if type(arg2) == "table" and arg2.Title then return tostring(arg2.Title) end
 	if type(arg1) == "table" and arg1.Title then return tostring(arg1.Title) end
@@ -352,7 +361,7 @@ local Icons = {
 	}
 }
 
-function CustomizeLibrary(Window)
+local function CustomizeLibrary(Window)
 	if not Window or not Window.Root then return end
 
 	local RootFrame = Window.Root
@@ -371,13 +380,40 @@ function CustomizeLibrary(Window)
 		return inst
 	end
 
-	TabContainer.ClipsDescendants = true
-	TabContainer.Position = UDim2.new(0, 12, 0, 96)
-	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -148)
+	local SidebarWidth = Window.TabWidth or 160
 
+	TabContainer.ClipsDescendants = true
+	TabContainer.Position = UDim2.new(0, SIDEBAR_SIDE_PAD, 0, TABS_TOP)
+	TabContainer.Size = UDim2.new(0, SidebarWidth, 1, -(TABS_TOP + TABS_BOTTOM_RESERVED))
+
+	TabHolder.Position = UDim2.new(0, 0, 0, 0)
+	TabHolder.Size = UDim2.new(1, 0, 1, 0)
+	TabHolder.ClipsDescendants = true
+	TabHolder.ScrollingDirection = Enum.ScrollingDirection.Y
+
+	local PAD_TOP, PAD_BOTTOM = 4, 2
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
-	ListPadding.PaddingTop = UDim.new(0, 4)
-	ListPadding.PaddingBottom = UDim.new(0, 8)
+	ListPadding.PaddingTop = UDim.new(0, PAD_TOP)
+	ListPadding.PaddingBottom = UDim.new(0, PAD_BOTTOM)
+
+	local TabLayout = TabHolder:FindFirstChildOfClass("UIListLayout")
+	local function FixTabCanvas()
+		if not TabHolder.Parent or not TabLayout then return end
+		TabHolder.AutomaticCanvasSize = Enum.AutomaticSize.None
+		TabHolder.CanvasSize = UDim2.fromOffset(0, TabLayout.AbsoluteContentSize.Y + PAD_TOP + PAD_BOTTOM)
+	end
+	if TabLayout then
+		TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			task.defer(FixTabCanvas)
+		end)
+		TabHolder:GetPropertyChangedSignal("CanvasSize"):Connect(function()
+			local want = TabLayout.AbsoluteContentSize.Y + PAD_TOP + PAD_BOTTOM
+			if math.abs(TabHolder.CanvasSize.Y.Offset - want) > 0.5 or TabHolder.CanvasSize.Y.Scale ~= 0 then
+				task.defer(FixTabCanvas)
+			end
+		end)
+		FixTabCanvas()
+	end
 
 	local SearchBarFrame = Create("Frame", {
 		Name = "SearchBarFrame",
@@ -385,8 +421,8 @@ function CustomizeLibrary(Window)
 		BackgroundColor3 = Sidebar.BackgroundColor3,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 12, 0, 56),
-		Size = UDim2.new(0, Window.TabWidth or 160, 0, 32),
+		Position = UDim2.new(0, SIDEBAR_SIDE_PAD, 0, SEARCH_TOP),
+		Size = UDim2.new(0, SidebarWidth, 0, SEARCH_HEIGHT),
 		ZIndex = 10
 	})
 
@@ -433,11 +469,12 @@ function CustomizeLibrary(Window)
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 12, 1, -52),
-		Size = UDim2.new(0, Window.TabWidth or 160, 0, 44),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, SIDEBAR_SIDE_PAD, 1, -PROFILE_BOTTOM_MARGIN),
+		Size = UDim2.new(0, SidebarWidth, 0, PROFILE_HEIGHT),
 		AutoButtonColor = false,
 		Text = "",
-		ZIndex = 5
+		ZIndex = 30
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = ProfileButton})
 	local ProfileStroke = Create("UIStroke", {Thickness = 1, Transparency = 1, Color = Color3.fromRGB(255, 255, 255), Parent = ProfileButton})
@@ -449,7 +486,7 @@ function CustomizeLibrary(Window)
 		BackgroundColor3 = Color3.fromRGB(0,0,0),
 		BackgroundTransparency = 1,
 		Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100),
-		ZIndex = 6
+		ZIndex = 31
 	})
 	Create("UICorner", {CornerRadius = UDim.new(1,0), Parent = Avatar})
 	local AvatarStroke = Create("UIStroke", {Thickness = 1.5, Transparency = 0.5, Color = Color3.fromRGB(255, 255, 255), Parent = Avatar, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})
@@ -462,9 +499,10 @@ function CustomizeLibrary(Window)
 		TextColor3 = Color3.fromRGB(240, 240, 240),
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Position = UDim2.new(0, 44, 0, 6),
 		Size = UDim2.new(1, -48, 0, 14),
-		ZIndex = 6
+		ZIndex = 31
 	})
 
 	local UserName = Create("TextLabel", {
@@ -475,9 +513,10 @@ function CustomizeLibrary(Window)
 		TextColor3 = Color3.fromRGB(160, 160, 160),
 		TextSize = 11,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
 		Position = UDim2.new(0, 44, 0, 22),
 		Size = UDim2.new(1, -48, 0, 12),
-		ZIndex = 6
+		ZIndex = 31
 	})
 
 	ProfileButton.MouseEnter:Connect(function()
@@ -973,7 +1012,7 @@ function CustomizeLibrary(Window)
 	local function PickFlashTarget(node)
 		if not node or typeof(node) ~= "Instance" then return nil end
 		local curr = node
-		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") then
+		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
 			curr = curr.Parent
 		end
 		return curr or node
@@ -1065,12 +1104,16 @@ function CustomizeLibrary(Window)
 			if page:IsA("ScrollingFrame") then
 				local tabName = "Unknown"
 				local tabIndex = 1
-				for idx, btn in pairs(TabHolder:GetChildren()) do
-					if btn:IsA("GuiButton") and btn.LayoutOrder == page.LayoutOrder then
-						local tl = btn:FindFirstChildOfClass("TextLabel")
-						if tl then tabName = tl.Text end
-						tabIndex = idx
-						break
+				local tabCounter = 0
+				for _, btn in pairs(TabHolder:GetChildren()) do
+					if btn:IsA("GuiButton") then
+						tabCounter += 1
+						if btn.LayoutOrder == page.LayoutOrder then
+							local tl = btn:FindFirstChildOfClass("TextLabel")
+							if tl then tabName = tl.Text end
+							tabIndex = tabCounter
+							break
+						end
 					end
 				end
 
@@ -1302,24 +1345,44 @@ local function HookWindow(Window)
 
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
-	local CurrentActiveTabName = "Unknown"
-	local CurrentActiveSectionName = "Unknown"
+
+	local PendingSectionLabels = {}
 
 	Window.AddTab = function(self, tabOptions)
 		CurrentTabIndex += 1
 		local ThisTabIndex = CurrentTabIndex
 
-		local TabName = (type(tabOptions) == "table" and tabOptions.Title) or tostring(tabOptions or "Unknown")
-		CurrentActiveTabName = TabName
-		CurrentActiveSectionName = TabName
+		local holder = self.TabHolder
+		local before = {}
+		if holder then
+			for _, c in ipairs(holder:GetChildren()) do before[c] = true end
+		end
 
 		local Tab = OriginalAddTab(self, tabOptions)
+
+		if holder and #PendingSectionLabels > 0 then
+			local order = nil
+			for _, c in ipairs(holder:GetChildren()) do
+				if not before[c] and c:IsA("GuiButton") then
+					order = c.LayoutOrder
+					break
+				end
+			end
+			order = order or ThisTabIndex
+			for _, lbl in ipairs(PendingSectionLabels) do
+				if lbl and lbl.Parent then lbl.LayoutOrder = order end
+			end
+			table.clear(PendingSectionLabels)
+		end
+
+		local TabName = tabOptions.Title or "Unknown"
+		local CurrentSection = TabName
 
 		local ctx = {
 			TabName = TabName,
 			TabIndex = ThisTabIndex,
-			GetSection = function() return CurrentActiveSectionName end,
-			SetSection = function(v) CurrentActiveSectionName = tostring(v or TabName) end
+			GetSection = function() return CurrentSection end,
+			SetSection = function(v) CurrentSection = tostring(v or TabName) end
 		}
 
 		HookContainer(Tab, ctx)
@@ -1332,7 +1395,6 @@ local function HookWindow(Window)
 		Window.AddTabSection = function(self, sectionTitle)
 			local sectionLabel = Instance.new("TextLabel")
 			sectionLabel.Name = "FluentRenewedTabSection"
-			sectionLabel.Parent = self.TabHolder
 			sectionLabel.BackgroundTransparency = 1
 			sectionLabel.Size = UDim2.new(1, 0, 0, 24)
 			sectionLabel.Font = Enum.Font.GothamBold
@@ -1340,15 +1402,17 @@ local function HookWindow(Window)
 			sectionLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
 			sectionLabel.TextSize = 11
 			sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+			sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
+			sectionLabel.LayoutOrder = 999999
+			sectionLabel.Parent = self.TabHolder
 
 			local pad = Instance.new("UIPadding", sectionLabel)
 			pad.PaddingLeft = UDim.new(0, 10)
 
+			table.insert(PendingSectionLabels, sectionLabel)
+
 			return {
 				AddTab = function(_, tabOptions)
-					local tabName = (type(tabOptions) == "table" and tabOptions.Title) or tostring(tabOptions or "Unknown")
-					CurrentActiveTabName = tabName
-					CurrentActiveSectionName = tabName
 					return Window:AddTab(tabOptions)
 				end
 			}
