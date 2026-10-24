@@ -10,8 +10,10 @@ local LocalPlayer = Players.LocalPlayer
 local ScriptStartTime = os.clock()
 local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 local SearchIndex = {}
-local ObjectSet = {}
-local SectionExpanders = {}
+local ObjectSet = setmetatable({}, {__mode = "k"})
+local SectionExpanders = setmetatable({}, {__mode = "k"})
+local GlobalConnections = {}
+local DestroyCallbacks = {}
 local SectionExpandersByTitle = {}
 local AllSectionTitles = {}
 local TargetTextColor = Color3.fromRGB(240, 240, 240)
@@ -27,6 +29,20 @@ local PROFILE_HEIGHT = 44
 local PROFILE_BOTTOM_MARGIN = 8
 local TABS_PROFILE_GAP = 6
 local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
+local MAX_SEARCH_RESULTS = 40
+local COLOR_TICK = 0.1
+
+local function Track(conn)
+	table.insert(GlobalConnections, conn)
+	return conn
+end
+
+local function DisconnectTracked()
+	for _, conn in ipairs(GlobalConnections) do
+		pcall(function() conn:Disconnect() end)
+	end
+	table.clear(GlobalConnections)
+end
 
 local function GetTitle(arg1, arg2)
 	if type(arg2) == "table" and arg2.Title then return tostring(arg2.Title) end
@@ -403,14 +419,23 @@ local function CustomizeLibrary(Window)
 		TabHolder.AutomaticCanvasSize = Enum.AutomaticSize.None
 		TabHolder.CanvasSize = UDim2.fromOffset(0, TabLayout.AbsoluteContentSize.Y + PAD_TOP + PAD_BOTTOM)
 	end
+	local canvasQueued = false
+	local function QueueFixCanvas()
+		if canvasQueued then return end
+		canvasQueued = true
+		task.defer(function()
+			canvasQueued = false
+			FixTabCanvas()
+		end)
+	end
 	if TabLayout then
 		TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			task.defer(FixTabCanvas)
+			QueueFixCanvas()
 		end)
 		TabHolder:GetPropertyChangedSignal("CanvasSize"):Connect(function()
 			local want = TabLayout.AbsoluteContentSize.Y + PAD_TOP + PAD_BOTTOM
 			if math.abs(TabHolder.CanvasSize.Y.Offset - want) > 0.5 or TabHolder.CanvasSize.Y.Scale ~= 0 then
-				task.defer(FixTabCanvas)
+				QueueFixCanvas()
 			end
 		end)
 		FixTabCanvas()
@@ -818,6 +843,21 @@ local function CustomizeLibrary(Window)
 	local SpotlightStroke = Create("UIStroke", {Thickness = 1, Transparency = 0, Parent = SpotlightFrame})
 	local SpotlightGradient = Create("UIGradient", {Parent = SpotlightFrame})
 
+	local SpotlightTop = 56
+	local function PositionSpotlight()
+		local cover = 0
+		local gui = RootFrame:FindFirstAncestorWhichIsA("ScreenGui")
+		if gui and gui.IgnoreGuiInset then
+			local inset = GuiService:GetGuiInset()
+			cover = math.max(0, inset.Y - RootFrame.AbsolutePosition.Y)
+		end
+		SpotlightTop = math.floor(math.clamp(RootFrame.AbsoluteSize.Y * 0.12, 56, 100) + cover)
+		SpotlightFrame.Position = UDim2.new(0.5, 0, 0, SpotlightTop)
+	end
+	RootFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if SpotlightOverlay.Visible then PositionSpotlight() end
+	end)
+
 	local SpotInput = Create("TextBox", {
 		Parent = SpotlightFrame,
 		BackgroundTransparency = 1,
@@ -862,11 +902,15 @@ local function CustomizeLibrary(Window)
 	Create("UIPadding", {Parent = SpotResults, PaddingLeft = UDim.new(0,5), PaddingRight = UDim.new(0,5), PaddingTop = UDim.new(0,5), PaddingBottom = UDim.new(0,5)})
 
 	local SettingsLabelRef, SettingsButtonRef, GradientRef = nil, nil, nil
+	local lastSettingsSearch, lastGradientSearch = 0, 0
 	local CurrentFlashColor = Color3.fromRGB(255, 255, 255)
 
-	local function UpdateColors()
-		pcall(function()
-			if not SettingsLabelRef or not SettingsButtonRef or not SettingsLabelRef.Parent then
+	local function UpdateColorsBody()
+		do
+			if Window.SyncSelector then Window.SyncSelector() end
+
+			if (not SettingsLabelRef or not SettingsButtonRef or not SettingsLabelRef.Parent) and os.clock() - lastSettingsSearch > 1 then
+				lastSettingsSearch = os.clock()
 				for _, inst in ipairs(RootFrame:GetDescendants()) do
 					if inst:IsA("TextButton") then
 						local label = inst:FindFirstChildWhichIsA("TextLabel", true)
@@ -879,7 +923,8 @@ local function CustomizeLibrary(Window)
 				end
 			end
 
-			if not GradientRef or not GradientRef.Parent then
+			if (not GradientRef or not GradientRef.Parent) and os.clock() - lastGradientSearch > 1 then
+				lastGradientSearch = os.clock()
 				for _, inst in ipairs(RootFrame:GetDescendants()) do
 					if inst:IsA("UIGradient") then GradientRef = inst break end
 				end
@@ -981,7 +1026,7 @@ local function CustomizeLibrary(Window)
 				SearchStroke.Transparency = 1
 			end
 
-			for _, btn in pairs(SpotResults:GetChildren()) do
+			for _, btn in pairs(SpotlightOverlay.Visible and SpotResults:GetChildren() or {}) do
 				if btn:IsA("TextButton") then
 					local t = btn:FindFirstChild("Title")
 					if t then t.TextColor3 = TargetTextColor end
@@ -995,9 +1040,16 @@ local function CustomizeLibrary(Window)
 					if str and btn:GetAttribute("Hovering") then str.Color = TargetTextColor end
 				end
 			end
-		end)
+		end
 	end
-	RunService.RenderStepped:Connect(UpdateColors)
+
+	local colorAcc = 0
+	Track(RunService.Heartbeat:Connect(function(dt)
+		colorAcc += dt
+		if colorAcc < COLOR_TICK then return end
+		colorAcc = 0
+		pcall(UpdateColorsBody)
+	end))
 
 	local function FindVisualTargetByText(root, itemName)
 		if not root then return end
@@ -1182,6 +1234,10 @@ local function CustomizeLibrary(Window)
 		for _, item in ipairs(SearchIndex) do
 			if query == "" or tostring(item.Name):lower():find(query, 1, true) then
 				hits += 1
+				if hits > MAX_SEARCH_RESULTS then
+					hits = MAX_SEARCH_RESULTS
+					break
+				end
 
 				local iconData = Icons[item.Type] or Icons.Misc
 
@@ -1323,16 +1379,26 @@ local function CustomizeLibrary(Window)
 			end
 		end
 
-		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - 56 - 16)
+		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - SpotlightTop - 16)
 		local totalHeight = math.min(hits * 34 + 52, 300, maxH)
 		if hits == 0 then totalHeight = 45 end
 		TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -48, 0, totalHeight)}):Play()
 		SpotResults.CanvasSize = UDim2.new(0, 0, 0, hits * 34)
 	end
 
-	SpotInput:GetPropertyChangedSignal("Text"):Connect(UpdateSearchResults)
+	local searchToken = 0
+	SpotInput:GetPropertyChangedSignal("Text"):Connect(function()
+		searchToken += 1
+		local token = searchToken
+		task.delay(0.08, function()
+			if token == searchToken and SpotlightOverlay.Visible then
+				UpdateSearchResults()
+			end
+		end)
+	end)
 
 	SearchTab.MouseButton1Click:Connect(function()
+		PositionSpotlight()
 		SpotlightOverlay.Visible = true
 		SpotInput:CaptureFocus()
 		UpdateSearchResults()
@@ -1359,6 +1425,68 @@ local function HookWindow(Window)
 	local SidebarOrder = {}
 	local CurrentSidebarSection = nil
 	local TabSectionByIndex = {}
+	local TabSectionByObject = setmetatable({}, {__mode = "k"})
+	local SelectorCache = nil
+	local lastSelectorSearch = 0
+
+	if Window.Root then
+		Window.Root.Destroying:Connect(function()
+			for _, cb in ipairs(DestroyCallbacks) do pcall(cb) end
+			DisconnectTracked()
+			table.clear(SearchIndex)
+			table.clear(AllSectionTitles)
+			table.clear(SectionExpandersByTitle)
+			table.clear(SidebarOrder)
+			SelectorCache = nil
+			if Library.CurrentWindow == Window then Library.CurrentWindow = nil end
+		end)
+	end
+
+	local function FindSelector()
+		if SelectorCache and SelectorCache.Parent then return SelectorCache end
+		SelectorCache = nil
+		if typeof(Window.Selector) == "Instance" then
+			SelectorCache = Window.Selector
+			return SelectorCache
+		end
+		if os.clock() - lastSelectorSearch < 1 then return nil end
+		lastSelectorSearch = os.clock()
+		local holder = Window.TabHolder
+		if not holder then return nil end
+		for _, parent in ipairs({holder.Parent, holder}) do
+			if parent then
+				for _, c in ipairs(parent:GetChildren()) do
+					if c:IsA("Frame") and c.Size.X.Scale == 0 and c.Size.X.Offset >= 2 and c.Size.X.Offset <= 6 then
+						SelectorCache = c
+						return c
+					end
+				end
+			end
+		end
+		return nil
+	end
+
+	Window.SyncSelector = function()
+		local sel = FindSelector()
+		if not sel then return end
+		local current = Window.SelectedTab
+		local sec = nil
+		if type(current) == "number" then
+			sec = TabSectionByIndex[current]
+		elseif type(current) == "table" then
+			sec = TabSectionByObject[current]
+		end
+		local hide = sec ~= nil and not sec.Expanded
+		if hide then
+			if sel.Visible then
+				sel.Visible = false
+				sel:SetAttribute("CollapseHidden", true)
+			end
+		elseif sel:GetAttribute("CollapseHidden") then
+			sel.Visible = true
+			sel:SetAttribute("CollapseHidden", nil)
+		end
+	end
 
 	local function RelayoutSidebar()
 		local holder = Window.TabHolder
@@ -1394,6 +1522,7 @@ local function HookWindow(Window)
 					if CurrentSidebarSection then
 						table.insert(CurrentSidebarSection.Tabs, c)
 						TabSectionByIndex[ThisTabIndex] = CurrentSidebarSection
+						if type(Tab) == "table" then TabSectionByObject[Tab] = CurrentSidebarSection end
 						c.Visible = CurrentSidebarSection.Expanded
 					end
 					break
@@ -1476,6 +1605,7 @@ local function HookWindow(Window)
 						tabButton.Visible = state
 					end
 				end
+				if Window.SyncSelector then Window.SyncSelector() end
 			end
 
 			trigger.MouseButton1Click:Connect(function()
@@ -1605,16 +1735,18 @@ local function HookWindow(Window)
 			dragInputObj = input
 			startPointer = PointerToGui(input)
 			startPos = Root.Position
-			input.Changed:Connect(function()
+			local endConn
+			endConn = input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
 					dragInputObj = nil
 					pcall(function() Window.Position = Root.Position end)
+					endConn:Disconnect()
 				end
 			end)
 		end)
 
-		UserInputService.InputChanged:Connect(function(input)
+		Track(UserInputService.InputChanged:Connect(function(input)
 			if not dragging then return end
 			local isMove = input.UserInputType == Enum.UserInputType.MouseMovement
 			local isTouch = input.UserInputType == Enum.UserInputType.Touch and input == dragInputObj
@@ -1663,7 +1795,7 @@ local function HookWindow(Window)
 				startPos.X.Scale, startPos.X.Offset + delta.X,
 				startPos.Y.Scale, startPos.Y.Offset + delta.Y
 			)
-		end)
+		end))
 	end
 
 	task.spawn(function()
@@ -1715,8 +1847,12 @@ toggleBtn.InputBegan:Connect(function(input)
         dragMoved = false
         mousePos = input.Position
         framePos = toggleBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        local endConn
+        endConn = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                endConn:Disconnect()
+            end
         end)
     end
 end)
@@ -1725,13 +1861,13 @@ toggleBtn.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+Track(UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - mousePos
         if delta.Magnitude > 6 then dragMoved = true end
         toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
     end
-end)
+end))
 
 toggleBtn.MouseButton1Down:Connect(function()
     TweenService:Create(toggleBtn, TweenInfo.new(0.1), {Size = pressedSize, ImageColor3 = Color3.fromRGB(200, 200, 255)}):Play()
@@ -1749,16 +1885,10 @@ toggleBtn.Activated:Connect(function()
     if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
 end)
 
-task.spawn(function()
-    while task.wait(0.5) do
-        if Library.CurrentWindow and Library.CurrentWindow.Root then
-            Library.CurrentWindow.Root.Destroying:Connect(function()
-                if toggleGui then
-                    toggleGui:Destroy()
-                end
-            end)
-            break
-        end
+table.insert(DestroyCallbacks, function()
+    if toggleGui then
+        toggleGui:Destroy()
+        toggleGui = nil
     end
 end)
 
