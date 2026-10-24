@@ -27,6 +27,7 @@ local GlobalConnections = {}
 local DestroyCallbacks = {}
 local SectionExpandersByTitle = {}
 local AllSectionTitles = {}
+local AllCreatedTabSections = {}
 local TabButtonsOnly = {}
 local TabButtonByTab = {}
 local TabSectionByButton = {}
@@ -947,14 +948,8 @@ local function CustomizeLibrary(Window)
 				end
 			end
 
-			for _, sectionLabel in ipairs(TabHolder:GetChildren()) do
-				if sectionLabel:IsA("TextLabel") and sectionLabel.Name == "FluentRenewedTabSection" then
-					local isHighlighted = sectionLabel:GetAttribute("Hovering") or sectionLabel:GetAttribute("IsActiveSection")
-					local labelColor = isHighlighted and TargetTextColor or SubColor
-					sectionLabel.TextColor3 = labelColor
-					local sectionArrow = sectionLabel:FindFirstChild("SectionArrow")
-					if sectionArrow then sectionArrow.ImageColor3 = labelColor end
-				end
+			if Window.UpdateSectionHighlights then
+				Window.UpdateSectionHighlights()
 			end
 
 			if DashboardOverlay.Visible then
@@ -1555,6 +1550,7 @@ local function HookWindow(Window)
 			table.clear(SearchIndex)
 			table.clear(AllSectionTitles)
 			table.clear(SectionExpandersByTitle)
+			table.clear(AllCreatedTabSections)
 			table.clear(SidebarOrder)
 			table.clear(TabButtonsOnly)
 			table.clear(TabButtonByTab)
@@ -1598,18 +1594,28 @@ local function HookWindow(Window)
 	end
 
 	local function UpdateSectionHighlights()
-		for _, sec in pairs(TabSectionByIndex) do
-			if sec and sec.Label then
-				local isActive = (CurrentActiveSection == sec)
-				sec.Label:SetAttribute("IsActiveSection", isActive)
-				local isHighlighted = isActive or sec.Label:GetAttribute("Hovering")
-				local col = isHighlighted and TargetTextColor or Color3.fromRGB(160, 160, 160)
-				sec.Label.TextColor3 = col
+		local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
+		local isDark = (brightness > 0.5)
+		local dimColor = isDark and Color3.fromRGB(160, 160, 160) or Color3.fromRGB(110, 110, 110)
+
+		for _, sec in ipairs(AllCreatedTabSections) do
+			if sec and sec.Label and sec.Label.Parent then
+				local isHovering = sec.Label:GetAttribute("Hovering") == true
+				local isActiveAndOpen = (CurrentActiveSection == sec) and (sec.Expanded == true)
+				local isHighlighted = isHovering or isActiveAndOpen
+
+				sec.Label:SetAttribute("IsActiveSection", isActiveAndOpen)
+
+				local targetCol = isHighlighted and TargetTextColor or dimColor
+				TweenService:Create(sec.Label, TweenInfo.new(0.15), {TextColor3 = targetCol}):Play()
 				local arrow = sec.Label:FindFirstChild("SectionArrow")
-				if arrow then arrow.ImageColor3 = col end
+				if arrow then 
+					TweenService:Create(arrow, TweenInfo.new(0.15), {ImageColor3 = targetCol}):Play()
+				end
 			end
 		end
 	end
+	Window.UpdateSectionHighlights = UpdateSectionHighlights
 
 	Window.SyncSelector = function()
 		local sel = FindSelector()
@@ -1835,6 +1841,8 @@ local function HookWindow(Window)
 						sel.Visible = state
 					end
 				end
+
+				UpdateSectionHighlights()
 			end
 
 			trigger.MouseButton1Click:Connect(function() sec.Set(not sec.Expanded) end)
@@ -1845,14 +1853,10 @@ local function HookWindow(Window)
 			end)
 			trigger.MouseLeave:Connect(function()
 				sectionLabel:SetAttribute("Hovering", false)
-				local isHighlighted = (CurrentActiveSection == sec)
-				local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
-				local isDark = (brightness > 0.5)
-				local baseColor = isHighlighted and TargetTextColor or (isDark and Color3.fromRGB(160, 160, 160) or Color3.fromRGB(110, 110, 110))
-				TweenService:Create(sectionLabel, TweenInfo.new(0.15), {TextColor3 = baseColor}):Play()
-				TweenService:Create(arrow, TweenInfo.new(0.15), {ImageColor3 = baseColor}):Play()
+				UpdateSectionHighlights()
 			end)
 
+			table.insert(AllCreatedTabSections, sec)
 			CurrentSidebarSection = sec
 			table.insert(SidebarOrder, sectionLabel)
 			RelayoutSidebar()
@@ -1932,7 +1936,7 @@ local function HookWindow(Window)
 				})
 			end
 
-			local overlay = RootFrame:FindFirstChild("SpotlightOverlay")
+			local overlay = Root and Root:FindFirstChild("SpotlightOverlay")
 			if overlay and overlay.Visible then
 				task.defer(function()
 					local spotResults = overlay:FindFirstChild("SpotResults", true)
@@ -1943,7 +1947,7 @@ local function HookWindow(Window)
 						end
 						local isMax = Window.Maximized or false
 						local widthScale = isMax and 0.88 or 0.85
-						local rootH = RootFrame.AbsoluteSize.Y
+						local rootH = Root.AbsoluteSize.Y
 						local maxAllowedHeight = math.clamp(rootH - SPOTLIGHT_TOP_OFFSET - 35, 100, 750)
 						local totalHeight = math.min(count * 34 + 52, maxAllowedHeight)
 						if count == 0 then totalHeight = 45 end
