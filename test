@@ -23,8 +23,8 @@ local DestroyCallbacks = {}
 local SectionExpandersByTitle = {}
 local AllSectionTitles = {}
 local TabButtonsOnly = {}
-local TabButtonByTab = setmetatable({}, {__mode = "k"})
-local TabSectionByButton = setmetatable({}, {__mode = "k"})
+local TabButtonByTab = {}
+local TabSectionByButton = {}
 local TargetTextColor = Color3.fromRGB(240, 240, 240)
 
 local OriginalCreateWindow = Library.CreateWindow
@@ -1468,8 +1468,10 @@ local function HookWindow(Window)
 	local CurrentTabIndex = 0
 	local SidebarOrder = {}
 	local CurrentSidebarSection = nil
+	local CurrentActiveButton = nil
+	local CurrentActiveSection = nil
 	local TabSectionByIndex = {}
-	local TabSectionByObject = setmetatable({}, {__mode = "k"})
+	local TabSectionByObject = {}
 	local SelectorCache = nil
 
 	if Window.Root then
@@ -1481,7 +1483,11 @@ local function HookWindow(Window)
 			table.clear(SectionExpandersByTitle)
 			table.clear(SidebarOrder)
 			table.clear(TabButtonsOnly)
+			table.clear(TabButtonByTab)
+			table.clear(TabSectionByButton)
 			SelectorCache = nil
+			CurrentActiveButton = nil
+			CurrentActiveSection = nil
 			if Library.CurrentWindow == Window then Library.CurrentWindow = nil end
 		end)
 	end
@@ -1506,8 +1512,8 @@ local function HookWindow(Window)
 		if holder and holder.Parent then
 			for _, d in ipairs(holder.Parent:GetDescendants()) do
 				if d:IsA("GuiObject") and not d:IsA("GuiButton") and not d:IsA("TextLabel") and not d:IsA("ScrollingFrame") then
-					local w, h = d.Size.X, d.Size.Y
-					if w.Offset >= 2 and w.Offset <= 6 and h.Offset >= 10 and h.Offset <= 45 then
+					local w = d.Size.X.Offset
+					if w >= 2 and w <= 6 then
 						SelectorCache = d
 						return d
 					end
@@ -1517,59 +1523,52 @@ local function HookWindow(Window)
 		return nil
 	end
 
-	local function GetSelectedTabButton()
-		local cur = Window.SelectedTab
-		if type(cur) == "table" then
-			local btn = rawget(cur, "Button") or TabButtonByTab[cur]
-			if btn and btn.Parent then return btn end
-		elseif type(cur) == "number" and Window.Tabs and Window.Tabs[cur] then
-			local t = Window.Tabs[cur]
-			local btn = rawget(t, "Button") or TabButtonByTab[t]
-			if btn and btn.Parent then return btn end
-		end
-
-		if Window.Tabs then
-			for _, t in ipairs(Window.Tabs) do
-				if rawget(t, "Selected") == true then
-					local btn = rawget(t, "Button") or TabButtonByTab[t]
-					if btn and btn.Parent then return btn end
-				end
-			end
-		end
-
-		local root = Window.Root
-		if root then
-			local ch = root:FindFirstChild("ContainerHolder", true)
-			if ch then
-				for _, page in ipairs(ch:GetChildren()) do
-					if page:IsA("ScrollingFrame") and page.Visible then
-						for _, btn in ipairs(TabButtonsOnly) do
-							if btn and btn.Parent and ((btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder) then
-								return btn
-							end
-						end
-					end
-				end
-			end
-		end
-
-		return nil
-	end
-
 	Window.SyncSelector = function()
 		local sel = FindSelector()
 		if not sel then return end
 
-		local btn = GetSelectedTabButton()
-		if not btn or not btn.Parent or not btn.Visible then
+		if not CurrentActiveButton and #TabButtonsOnly > 0 then
+			CurrentActiveButton = TabButtonsOnly[1]
+			CurrentActiveSection = TabSectionByButton[CurrentActiveButton]
+		end
+
+		local btn = CurrentActiveButton
+		local sec = CurrentActiveSection or (btn and TabSectionByButton[btn])
+
+		if sec and sec.Expanded == false then
 			sel.Visible = false
-		else
-			sel.Visible = true
-			local holder = Window.TabHolder
-			if holder and holder.Parent then
-				local targetY = btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y
-				sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
+			return
+		end
+
+		if not btn or not btn.Parent or btn.Visible == false then
+			sel.Visible = false
+			return
+		end
+
+		sel.Visible = true
+		local holder = Window.TabHolder
+		if holder and holder.Parent then
+			local targetY = btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y
+			sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
+		end
+	end
+
+	local OriginalSelectTab = Window.SelectTab
+	if OriginalSelectTab then
+		Window.SelectTab = function(self, tabArg)
+			local res = OriginalSelectTab(self, tabArg)
+			local targetTab = (type(tabArg) == "number" and Window.Tabs and Window.Tabs[tabArg]) or tabArg
+			if targetTab then
+				local b = TabButtonByTab[targetTab] or rawget(targetTab, "_ButtonInstance") or rawget(targetTab, "Button")
+				if b then
+					CurrentActiveButton = b
+					CurrentActiveSection = TabSectionByButton[b]
+				end
 			end
+			task.defer(function()
+				if Window.SyncSelector then Window.SyncSelector() end
+			end)
+			return res
 		end
 	end
 
@@ -1626,8 +1625,11 @@ local function HookWindow(Window)
 					c:SetAttribute("OriginalOrder", c.LayoutOrder)
 					table.insert(SidebarOrder, c)
 					table.insert(TabButtonsOnly, c)
+
 					if type(tabObj) == "table" then
 						TabButtonByTab[tabObj] = c
+						rawset(tabObj, "_ButtonInstance", c)
+						rawset(tabObj, "_SectionRef", targetSec)
 					end
 
 					if targetSec then
@@ -1640,7 +1642,14 @@ local function HookWindow(Window)
 						c.Visible = targetSec.Expanded
 					end
 
+					if not CurrentActiveButton then
+						CurrentActiveButton = c
+						CurrentActiveSection = targetSec
+					end
+
 					c.MouseButton1Click:Connect(function()
+						CurrentActiveButton = c
+						CurrentActiveSection = targetSec
 						task.defer(function()
 							if Window.SyncSelector then Window.SyncSelector() end
 						end)
