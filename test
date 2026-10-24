@@ -799,3 +799,1221 @@ local function CustomizeLibrary(Window)
 	end
 
 	local function OpenDashboard()
+		DashboardOverlay.Visible = true
+		TweenService:Create(DashboardOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.55}):Play()
+		DashboardCard.Size = UDim2.fromOffset(440, 296)
+		TweenService:Create(DashboardCard, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(460, 316)}):Play()
+
+		StopAllTelemetry()
+
+		dashboardLoopThread = task.spawn(function()
+			task.wait(1)
+			if not DashboardOverlay.Visible then return end
+
+			local frameCount = 0
+			local lastFpsTick = os.clock()
+
+			if fpsConn then fpsConn:Disconnect() end
+			fpsConn = RunService.RenderStepped:Connect(function()
+				frameCount += 1
+				local now = os.clock()
+				if now - lastFpsTick >= 1 then
+					FpsVal.Text = tostring(math.floor(frameCount / (now - lastFpsTick))) .. " FPS"
+					frameCount = 0
+					lastFpsTick = now
+				end
+			end)
+
+			UpdateDashboardTelemetry()
+
+			while DashboardOverlay.Visible do
+				task.wait(1)
+				if DashboardOverlay.Visible then
+					UpdateDashboardTelemetry()
+				end
+			end
+		end)
+	end
+
+	local function CloseDashboard()
+		StopAllTelemetry()
+		TweenService:Create(DashboardOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(DashboardCard, TweenInfo.new(0.15), {Size = UDim2.fromOffset(440, 296)}):Play()
+		task.wait(0.15)
+		DashboardOverlay.Visible = false
+	end
+
+	DashboardOverlay:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not DashboardOverlay.Visible then
+			StopAllTelemetry()
+		end
+	end)
+
+	ProfileButton.MouseButton1Click:Connect(OpenDashboard)
+	DashClose.MouseButton1Click:Connect(CloseDashboard)
+
+	DashboardOverlay.MouseButton1Click:Connect(function()
+		local mouse = UserInputService:GetMouseLocation()
+		local cardPos = DashboardCard.AbsolutePosition
+		local cardSize = DashboardCard.AbsoluteSize
+
+		if mouse.X >= cardPos.X and mouse.X <= cardPos.X + cardSize.X
+		and mouse.Y >= cardPos.Y and mouse.Y <= cardPos.Y + cardSize.Y then
+			return
+		end
+
+		CloseDashboard()
+	end)
+
+	local SpotlightOverlay = Create("Frame", {
+		Name = "SpotlightOverlay",
+		Parent = RootFrame,
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 1, 0),
+		ClipsDescendants = true,
+		ZIndex = 10000,
+		Visible = false
+	})
+
+	local SpotlightFrame = Create("Frame", {
+		Parent = SpotlightOverlay,
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 36),
+		Size = UDim2.new(1, -48, 0, 45),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		ZIndex = 10001
+	})
+	Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = SpotlightFrame})
+	Create("UISizeConstraint", {MaxSize = Vector2.new(560, math.huge), Parent = SpotlightFrame})
+	local SpotlightStroke = Create("UIStroke", {Thickness = 1, Transparency = 0, Parent = SpotlightFrame})
+	local SpotlightGradient = Create("UIGradient", {Parent = SpotlightFrame})
+
+	local SpotlightTop = 36
+	local function PositionSpotlight()
+		SpotlightFrame.Position = UDim2.new(0.5, 0, 0, SpotlightTop)
+	end
+	RootFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if SpotlightOverlay.Visible then PositionSpotlight() end
+	end)
+
+	local SpotInput = Create("TextBox", {
+		Parent = SpotlightFrame,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 42, 0, 0),
+		Size = UDim2.new(1, -45, 0, 45),
+		Font = Enum.Font.GothamMedium,
+		Text = "",
+		PlaceholderText = "Search features...",
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ClearTextOnFocus = false,
+		ZIndex = 10002
+	})
+	local SpotIcon = Create("ImageLabel", {
+		Parent = SpotlightFrame,
+		BackgroundTransparency = 1,
+		Image = Icons.Search,
+		Position = UDim2.new(0, 12, 0, 11),
+		Size = UDim2.fromOffset(22, 22),
+		ZIndex = 10002
+	})
+
+	local SpotSeparator = Create("Frame", {
+		Parent = SpotlightFrame,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 0, 45),
+		Size = UDim2.new(1, 0, 0, 1),
+		ZIndex = 10002
+	})
+
+	local SpotResults = Create("ScrollingFrame", {
+		Parent = SpotlightFrame,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 47),
+		Size = UDim2.new(1, 0, 1, -47),
+		ScrollBarThickness = 3,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		ZIndex = 10002
+	})
+	Create("UIListLayout", {Parent = SpotResults, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2)})
+	Create("UIPadding", {Parent = SpotResults, PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5)})
+
+	local SettingsLabelRef, SettingsButtonRef, GradientRef = nil, nil, nil
+	local CurrentFlashColor = Color3.fromRGB(255, 255, 255)
+
+	local function UpdateColorsBody()
+		if not SettingsLabelRef or not SettingsButtonRef or not SettingsLabelRef.Parent then
+			for _, inst in ipairs(RootFrame:GetDescendants()) do
+				if inst:IsA("TextButton") then
+					local label = inst:FindFirstChildWhichIsA("TextLabel", true)
+					if label and label.Text == "Settings" then
+						SettingsLabelRef = label
+						SettingsButtonRef = inst
+						break
+					end
+				end
+			end
+		end
+
+		if not GradientRef or not GradientRef.Parent then
+			for _, inst in ipairs(RootFrame:GetDescendants()) do
+				if inst:IsA("UIGradient") then GradientRef = inst break end
+			end
+		end
+
+		local TargetBgColor = Color3.fromRGB(30, 30, 30)
+
+		if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
+		if SettingsButtonRef then
+			TargetBgColor = SettingsButtonRef.BackgroundColor3
+		end
+
+		local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
+		local SubColor = (brightness > 0.5) and Color3.fromRGB(160, 160, 160) or Color3.fromRGB(100, 100, 100)
+
+		local stroke = RootFrame:FindFirstChild("UIStroke")
+		CurrentFlashColor = stroke and stroke.Color or SubColor
+
+		SearchText.TextColor3 = TargetTextColor
+		SearchIcon.ImageColor3 = TargetTextColor
+		DisplayName.TextColor3 = TargetTextColor
+		UserName.TextColor3 = SubColor
+
+		SpotInput.TextColor3 = TargetTextColor
+		SpotIcon.ImageColor3 = TargetTextColor
+		SpotInput.PlaceholderColor3 = SubColor
+		SpotSeparator.BackgroundColor3 = SubColor
+
+		for _, secTitle in ipairs(AllSectionTitles) do
+			if secTitle and secTitle.Parent then
+				secTitle.TextColor3 = TargetTextColor
+				local arrow = secTitle:FindFirstChild("CollapseArrow")
+				if arrow then
+					arrow.ImageColor3 = TargetTextColor
+				end
+			end
+		end
+
+		for _, sectionLabel in ipairs(TabHolder:GetChildren()) do
+			if sectionLabel:IsA("TextLabel") and sectionLabel.Name == "FluentRenewedTabSection" then
+				local labelColor = sectionLabel:GetAttribute("Hovering") and TargetTextColor or SubColor
+				sectionLabel.TextColor3 = labelColor
+				local sectionArrow = sectionLabel:FindFirstChild("SectionArrow")
+				if sectionArrow then sectionArrow.ImageColor3 = labelColor end
+			end
+		end
+
+		if DashboardOverlay.Visible then
+			local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(15, 20, 28)
+
+			local cardBaseColor = Color3.new(
+				math.clamp(windowBg.R * 0.72, 0, 1),
+				math.clamp(windowBg.G * 0.72, 0, 1),
+				math.clamp(windowBg.B * 0.72, 0, 1)
+			)
+
+			local boxFill = Color3.new(
+				math.clamp(windowBg.R * 0.48, 0, 1),
+				math.clamp(windowBg.G * 0.48, 0, 1),
+				math.clamp(windowBg.B * 0.48, 0, 1)
+			)
+
+			local boxOutline = stroke and stroke.Color or SubColor
+
+			DashboardCard.BackgroundColor3 = cardBaseColor
+			DashTitle.TextColor3 = TargetTextColor
+			DashClose.TextColor3 = TargetTextColor
+			DashStroke.Color = boxOutline
+
+			for _, item in ipairs(StatCardFrames) do
+				item.card.BackgroundColor3 = boxFill
+				item.stroke.Color = boxOutline
+				item.stroke.Transparency = 0.75
+			end
+
+			for _, lbl in ipairs(StatCardTitles) do
+				lbl.TextColor3 = TargetTextColor
+			end
+
+			for _, val in ipairs(StatCardValues) do
+				val.TextColor3 = SubColor
+			end
+		end
+
+		if GradientRef then
+			SpotlightGradient.Color = GradientRef.Color
+			SpotlightGradient.Rotation = GradientRef.Rotation
+			SpotlightFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+		else
+			SpotlightFrame.BackgroundColor3 = TargetBgColor
+		end
+
+		if stroke then
+			SearchStroke.Color = stroke.Color
+			AvatarStroke.Color = stroke.Color
+			SpotlightStroke.Color = stroke.Color
+			DashStroke.Color = stroke.Color
+		else
+			SearchStroke.Transparency = 1
+		end
+
+		for _, btn in pairs(SpotlightOverlay.Visible and SpotResults:GetChildren() or {}) do
+			if btn:IsA("TextButton") then
+				local t = btn:FindFirstChild("Title")
+				if t then t.TextColor3 = TargetTextColor end
+				local dot = btn:FindFirstChild("Dot")
+				if dot then dot.TextColor3 = TargetTextColor end
+				local tabL = btn:FindFirstChild("TabLabel")
+				if tabL then tabL.TextColor3 = TargetTextColor end
+				local icon = btn:FindFirstChild("Icon")
+				if icon then icon.ImageColor3 = TargetTextColor end
+				local str = btn:FindFirstChild("UIStroke")
+				if str and btn:GetAttribute("Hovering") then str.Color = TargetTextColor end
+			end
+		end
+	end
+
+	task.delay(0.5, UpdateColorsBody)
+
+	local function FindVisualTargetByText(root, itemName)
+		if not root then return end
+		for _, desc in ipairs(root:GetDescendants()) do
+			if desc:IsA("TextLabel") and desc.Text == itemName then
+				local p = desc
+				while p and p ~= root do
+					if p.Parent and p.Parent:IsA("ScrollingFrame") then
+						return desc
+					end
+					p = p.Parent
+				end
+				return desc
+			end
+		end
+	end
+
+	local function PickFlashTarget(node)
+		if not node or typeof(node) ~= "Instance" then return nil end
+		local curr = node
+		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
+			curr = curr.Parent
+		end
+		return curr or node
+	end
+
+	local function ScrollToTargetCentered(target)
+		if not target then return end
+		target = PickFlashTarget(target)
+		if not target then return end
+
+		local sf = target:FindFirstAncestorWhichIsA("ScrollingFrame")
+		if not sf then return end
+
+		local padTop = 0
+		local pad = sf:FindFirstChildOfClass("UIPadding")
+		if pad then padTop = pad.PaddingTop.Offset end
+
+		local viewH = sf.AbsoluteWindowSize.Y
+		local targetH = target.AbsoluteSize.Y
+
+		local relY = (target.AbsolutePosition.Y - sf.AbsolutePosition.Y) + sf.CanvasPosition.Y - padTop
+		local desiredY = relY - (viewH * 0.5) + (targetH * 0.5)
+
+		local maxScroll = math.max(0, sf.AbsoluteCanvasSize.Y - sf.AbsoluteWindowSize.Y)
+		desiredY = math.clamp(desiredY, 0, maxScroll)
+
+		local existingOverlay = target:FindFirstChild("SearchFlashOverlay")
+		if existingOverlay then existingOverlay:Destroy() end
+
+		local targetCorner = target:FindFirstChildOfClass("UICorner")
+		local cornerRadius = targetCorner and targetCorner.CornerRadius or UDim.new(0, 8)
+
+		local overlay = Instance.new("Frame")
+		overlay.Name = "SearchFlashOverlay"
+		overlay.BackgroundTransparency = 1
+		overlay.BorderSizePixel = 0
+		overlay.Size = UDim2.new(1, -2, 1, -2)
+		overlay.Position = UDim2.new(0, 1, 0, 1)
+		overlay.ZIndex = math.max((target.ZIndex or 1) + 10, 20)
+		overlay.ClipsDescendants = false
+		overlay.Parent = target
+
+		local corner = Instance.new("UICorner", overlay)
+		corner.CornerRadius = cornerRadius
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Name = "SearchFlashStroke"
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Thickness = 2
+		stroke.Color = CurrentFlashColor
+		stroke.Transparency = 1
+		stroke.Parent = overlay
+
+		sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
+
+		task.spawn(function()
+			for _ = 1, 3 do
+				if not overlay.Parent then break end
+				local t1 = TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
+				t1:Play()
+				t1.Completed:Wait()
+				task.wait(0.04)
+				local t2 = TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1})
+				t2:Play()
+				t2.Completed:Wait()
+				task.wait(0.04)
+			end
+			if overlay then overlay:Destroy() end
+		end)
+	end
+
+	local function ScrollToElement(itemName, frameObj)
+		local target = frameObj
+		if not target then
+			target = FindVisualTargetByText(RootFrame, itemName)
+		end
+		ScrollToTargetCentered(target)
+	end
+
+	local function DeepIndexElements()
+		local ContainerHolder = nil
+		for _, v in pairs(RootFrame:GetDescendants()) do
+			if v.Name == "ContainerHolder" then ContainerHolder = v break end
+		end
+
+		if not ContainerHolder then return end
+
+		for _, page in pairs(ContainerHolder:GetChildren()) do
+			if page:IsA("ScrollingFrame") then
+				local tabName = "Unknown"
+				local tabIndex = 1
+				local tabCounter = 0
+				for _, btn in pairs(TabHolder:GetChildren()) do
+					if btn:IsA("GuiButton") then
+						tabCounter += 1
+						if (btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder then
+							local tl = btn:FindFirstChildOfClass("TextLabel")
+							if tl then tabName = tl.Text end
+							tabIndex = tabCounter
+							break
+						end
+					end
+				end
+
+				local currentSection = tabName
+
+				for _, element in pairs(page:GetChildren()) do
+					if element:IsA("Frame") and element.Visible then
+						if not ObjectSet[element] then
+							local elType = "Misc"
+							local title = "Unknown"
+
+							local possibleTitle = element:FindFirstChild("Title") or element:FindFirstChildOfClass("TextLabel")
+							if possibleTitle and possibleTitle:IsA("TextLabel") then
+								title = possibleTitle.Text
+							end
+
+							if title ~= "Unknown" and title ~= "" then
+								if element:FindFirstChild("Title") and element.Title.TextXAlignment == Enum.TextXAlignment.Center then
+									elType = "Section"
+									currentSection = title
+								elseif element:FindFirstChild("Box") then elType = "Input"
+								elseif element:FindFirstChild("Slider") then elType = "Slider"
+								elseif element:FindFirstChild("Dropdown") then elType = "Dropdown"
+								elseif element:FindFirstChild("Check") or element:FindFirstChild("Toggle") then elType = "Toggle"
+								elseif element:FindFirstChild("Container") then elType = "Button"
+								elseif element.Name == "Section" then elType = "Section"; currentSection = title
+								elseif element.Name == "Paragraph" then elType = "Paragraph"
+								end
+
+								ObjectSet[element] = true
+								table.insert(SearchIndex, {
+									Name = title,
+									Type = elType,
+									Tab = tabName,
+									Section = currentSection,
+									TabIndex = tabIndex,
+									Object = nil,
+									Frame = element
+								})
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	task.spawn(function()
+		task.wait(2)
+		DeepIndexElements()
+	end)
+
+	local function UpdateSearchResults()
+		local query = SpotInput.Text:lower()
+		for _, v in pairs(SpotResults:GetChildren()) do
+			if v:IsA("TextButton") then v:Destroy() end
+		end
+
+		local hits = 0
+		for _, item in ipairs(SearchIndex) do
+			if query == "" or tostring(item.Name):lower():find(query, 1, true) then
+				hits += 1
+				if hits > MAX_SEARCH_RESULTS then
+					hits = MAX_SEARCH_RESULTS
+					break
+				end
+
+				local iconData = Icons[item.Type] or Icons.Misc
+
+				local btn = Create("TextButton", {
+					Parent = SpotResults,
+					BackgroundColor3 = Sidebar.BackgroundColor3,
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 0, 32),
+					Text = "",
+					AutoButtonColor = false,
+					ZIndex = 10005,
+					Active = true
+				})
+				Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = btn})
+
+				local btnStroke = Create("UIStroke", {
+					Parent = btn,
+					Thickness = 1,
+					Transparency = 1,
+					Color = SpotInput.TextColor3,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				})
+
+				local iconImage = ""
+				local iconRectSize = Vector2.new(0, 0)
+				local iconRectOffset = Vector2.new(0, 0)
+
+				if type(iconData) == "table" then
+					iconImage = iconData.Image
+					iconRectSize = iconData.ImageRectSize
+					iconRectOffset = iconData.ImageRectOffset
+				else
+					iconImage = iconData
+				end
+
+				Create("ImageLabel", {
+					Name = "Icon",
+					Parent = btn,
+					BackgroundTransparency = 1,
+					Image = iconImage,
+					ImageRectSize = iconRectSize,
+					ImageRectOffset = iconRectOffset,
+					ImageColor3 = SpotInput.TextColor3,
+					Position = UDim2.new(0, 8, 0.5, -8),
+					Size = UDim2.fromOffset(16, 16),
+					ZIndex = 10006
+				})
+
+				local TitleLabel = Create("TextLabel", {
+					Name = "Title",
+					Parent = btn,
+					BackgroundTransparency = 1,
+					Text = item.Name,
+					TextColor3 = SpotInput.TextColor3,
+					Font = Enum.Font.GothamMedium,
+					TextSize = 13,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					AutomaticSize = Enum.AutomaticSize.X,
+					Position = UDim2.new(0, 32, 0, 0),
+					Size = UDim2.new(0, 0, 1, 0),
+					ZIndex = 10006
+				})
+
+				local Dot = Create("TextLabel", {
+					Name = "Dot",
+					Parent = btn,
+					BackgroundTransparency = 1,
+					Text = "•",
+					TextColor3 = SpotInput.TextColor3,
+					Font = Enum.Font.Gotham,
+					TextSize = 13,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(0, 10, 1, 0),
+					ZIndex = 10006
+				})
+
+				local displayPath = item.Tab
+				if item.Section and item.Section ~= item.Tab then
+					displayPath = item.Tab .. " > " .. item.Section
+				end
+
+				local TabLabel = Create("TextLabel", {
+					Name = "TabLabel",
+					Parent = btn,
+					BackgroundTransparency = 1,
+					Text = displayPath,
+					TextColor3 = SpotInput.TextColor3,
+					Font = Enum.Font.Gotham,
+					TextSize = 12,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(0, 100, 1, 0),
+					ZIndex = 10006
+				})
+
+				task.delay(0, function()
+					local tW = TitleLabel.AbsoluteSize.X
+					Dot.Position = UDim2.new(0, 32 + tW + 5, 0, 0)
+					TabLabel.Position = UDim2.new(0, 32 + tW + 15, 0, 0)
+				end)
+
+				btn.MouseEnter:Connect(function()
+					btn:SetAttribute("Hovering", true)
+					TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.95}):Play()
+					TweenService:Create(btnStroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
+				end)
+				btn.MouseLeave:Connect(function()
+					btn:SetAttribute("Hovering", false)
+					TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+					TweenService:Create(btnStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+				end)
+
+				btn.MouseButton1Click:Connect(function()
+					local sectionName = item.Section and tostring(item.Section):lower()
+					if sectionName and SectionExpandersByTitle[sectionName] then
+						SectionExpandersByTitle[sectionName]()
+					end
+
+					pcall(function()
+						if Window.ExpandTabSection then Window:ExpandTabSection(item.TabIndex) end
+					end)
+
+					TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+					TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, -48, 0, 45)}):Play()
+					task.wait(0.15)
+					SpotlightOverlay.Visible = false
+					SpotInput.Text = ""
+
+					task.wait(0.1)
+					RunService.RenderStepped:Wait()
+					RunService.RenderStepped:Wait()
+
+					pcall(function() Window:SelectTab(item.TabIndex) end)
+
+					RunService.RenderStepped:Wait()
+					ScrollToElement(item.Name, item.Frame)
+				end)
+			end
+		end
+
+		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - 36 - 16)
+		local totalHeight = math.min(hits * 34 + 52, 300, maxH)
+		if hits == 0 then totalHeight = 45 end
+		TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -48, 0, totalHeight)}):Play()
+		SpotResults.CanvasSize = UDim2.new(0, 0, 0, hits * 34)
+	end
+
+	local searchToken = 0
+	SpotInput:GetPropertyChangedSignal("Text"):Connect(function()
+		searchToken += 1
+		local token = searchToken
+		task.delay(0.08, function()
+			if token == searchToken and SpotlightOverlay.Visible then
+				UpdateSearchResults()
+			end
+		end)
+	end)
+
+	SearchTab.MouseButton1Click:Connect(function()
+		PositionSpotlight()
+		UpdateColorsBody()
+		SpotlightOverlay.Visible = true
+		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.4}):Play()
+		SpotInput:CaptureFocus()
+		UpdateSearchResults()
+	end)
+
+	local CloseBtn = Create("TextButton", {
+		Parent = SpotlightOverlay,
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 199
+	})
+	CloseBtn.MouseButton1Click:Connect(function()
+		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, -48, 0, 45)}):Play()
+		task.wait(0.15)
+		SpotlightOverlay.Visible = false
+	end)
+end
+
+local function HookWindow(Window)
+	if not Window or type(Window) ~= "table" or Window.__SearchHooked then return Window end
+	Window.__SearchHooked = true
+
+	local OriginalAddTab = Window.AddTab
+	local CurrentTabIndex = 0
+	local SidebarOrder = {}
+	local CurrentSidebarSection = nil
+	local CurrentActiveButton = nil
+	local CurrentActiveSection = nil
+	local TabSectionByIndex = {}
+	local TabSectionByObject = {}
+	local SelectorCache = nil
+
+	if Window.Root then
+		Window.Root.Destroying:Connect(function()
+			for _, cb in ipairs(DestroyCallbacks) do pcall(cb) end
+			DisconnectTracked()
+			table.clear(SearchIndex)
+			table.clear(AllSectionTitles)
+			table.clear(SectionExpandersByTitle)
+			table.clear(SidebarOrder)
+			table.clear(TabButtonsOnly)
+			table.clear(TabButtonByTab)
+			table.clear(TabSectionByButton)
+			SelectorCache = nil
+			CurrentActiveButton = nil
+			CurrentActiveSection = nil
+			if Library.CurrentWindow == Window then Library.CurrentWindow = nil end
+		end)
+	end
+
+	local function FindSelector()
+		if SelectorCache and SelectorCache.Parent then return SelectorCache end
+		SelectorCache = nil
+		if typeof(Window.Selector) == "Instance" then
+			SelectorCache = Window.Selector
+			return SelectorCache
+		end
+		if not Window.Root then return nil end
+
+		for _, d in ipairs(Window.Root:GetDescendants()) do
+			if d:IsA("GuiObject") and d.Name == "Selector" then
+				SelectorCache = d
+				return d
+			end
+		end
+
+		local holder = Window.TabHolder
+		if holder and holder.Parent then
+			for _, d in ipairs(holder.Parent:GetDescendants()) do
+				if d:IsA("GuiObject") and not d:IsA("GuiButton") and not d:IsA("TextLabel") and not d:IsA("ScrollingFrame") then
+					local w = d.Size.X.Offset
+					if w >= 2 and w <= 6 then
+						SelectorCache = d
+						return d
+					end
+				end
+			end
+		end
+		return nil
+	end
+
+	Window.SyncSelector = function()
+		local sel = FindSelector()
+		if not sel then return end
+
+		if not CurrentActiveButton and #TabButtonsOnly > 0 then
+			CurrentActiveButton = TabButtonsOnly[1]
+			CurrentActiveSection = TabSectionByButton[CurrentActiveButton]
+		end
+
+		local btn = CurrentActiveButton
+		local sec = CurrentActiveSection or (btn and TabSectionByButton[btn])
+
+		if sec and sec.Expanded == false then
+			sel.Visible = false
+			return
+		end
+
+		if not btn or not btn.Parent or btn.Visible == false then
+			sel.Visible = false
+			return
+		end
+
+		sel.Visible = true
+	end
+
+	local OriginalSelectTab = Window.SelectTab
+	if OriginalSelectTab then
+		Window.SelectTab = function(self, tabArg)
+			local res = OriginalSelectTab(self, tabArg)
+			local btn = nil
+
+			if type(tabArg) == "number" then
+				btn = TabButtonsOnly[tabArg]
+			elseif type(tabArg) == "table" then
+				btn = TabButtonByTab[tabArg] or tabArg._ButtonInstance
+			end
+
+			if btn then
+				CurrentActiveButton = btn
+				CurrentActiveSection = TabSectionByButton[btn]
+			end
+
+			local sel = FindSelector()
+			if sel then sel.Visible = true end
+
+			return res
+		end
+	end
+
+	local function RelayoutSidebar()
+		local holder = Window.TabHolder
+		if not holder then return end
+		local layout = holder:FindFirstChildOfClass("UIListLayout")
+		if layout then layout.SortOrder = Enum.SortOrder.LayoutOrder end
+		local n = 0
+		for _, obj in ipairs(SidebarOrder) do
+			if obj and obj.Parent then
+				n += 1
+				obj.LayoutOrder = n
+			end
+		end
+	end
+
+	Window.AddTab = function(self, ...)
+		local args = {...}
+		local tabOptions = nil
+		local explicitSec = nil
+
+		for _, arg in ipairs(args) do
+			if type(arg) == "table" then
+				if arg.Tabs and arg.Set then
+					explicitSec = arg
+				elseif not tabOptions then
+					tabOptions = arg
+				end
+			end
+		end
+
+		if not explicitSec and type(self) == "table" and self.Tabs and self.Set then
+			explicitSec = self
+		end
+
+		local targetSec = explicitSec or CurrentSidebarSection
+		tabOptions = tabOptions or {}
+
+		CurrentTabIndex += 1
+		local ThisTabIndex = CurrentTabIndex
+
+		local holder = Window.TabHolder
+		local before = {}
+		if holder then
+			for _, c in ipairs(holder:GetChildren()) do before[c] = true end
+		end
+
+		local tabObj = OriginalAddTab(Window, tabOptions)
+
+		if holder then
+			for _, c in ipairs(holder:GetChildren()) do
+				if not before[c] and c:IsA("GuiButton") then
+					c:SetAttribute("OriginalOrder", c.LayoutOrder)
+					table.insert(SidebarOrder, c)
+					table.insert(TabButtonsOnly, c)
+
+					if type(tabObj) == "table" then
+						TabButtonByTab[tabObj] = c
+						rawset(tabObj, "_ButtonInstance", c)
+						rawset(tabObj, "_SectionRef", targetSec)
+					end
+
+					if targetSec then
+						table.insert(targetSec.Tabs, c)
+						TabSectionByIndex[ThisTabIndex] = targetSec
+						TabSectionByButton[c] = targetSec
+						if type(tabObj) == "table" then 
+							TabSectionByObject[tabObj] = targetSec 
+						end
+						c.Visible = targetSec.Expanded
+					end
+
+					if not CurrentActiveButton then
+						CurrentActiveButton = c
+						CurrentActiveSection = targetSec
+					end
+
+					c.MouseButton1Click:Connect(function()
+						CurrentActiveButton = c
+						CurrentActiveSection = targetSec
+						local sel = FindSelector()
+						if sel then sel.Visible = true end
+					end)
+					break
+				end
+			end
+			RelayoutSidebar()
+		end
+
+		local TabName = tabOptions.Title or "Unknown"
+		local CurrentSection = TabName
+
+		local ctx = {
+			TabName = TabName,
+			TabIndex = ThisTabIndex,
+			GetSection = function() return CurrentSection end,
+			SetSection = function(v) CurrentSection = tostring(v or TabName) end
+		}
+
+		HookContainer(tabObj, ctx)
+		RecordElement(ctx, "Misc", TabName, tabObj)
+
+		return tabObj
+	end
+
+	Window.ExpandTabSection = function(_, tabIndex)
+		local sec = TabSectionByIndex[tabIndex]
+		if sec and not sec.Expanded then
+			sec.Set(true)
+		end
+	end
+
+	if Window.TabHolder then
+		Window.AddTabSection = function(self, ...)
+			local args = {...}
+			local sectionTitle = args[1]
+			local defaultExpanded = args[2]
+
+			local sec = {Tabs = {}, Expanded = defaultExpanded ~= false}
+
+			local sectionLabel = Instance.new("TextLabel")
+			sectionLabel.Name = "FluentRenewedTabSection"
+			sectionLabel.BackgroundTransparency = 1
+			sectionLabel.Size = UDim2.new(1, 0, 0, 24)
+			sectionLabel.Font = Enum.Font.GothamBold
+			sectionLabel.Text = string.upper(tostring(sectionTitle or ""))
+			sectionLabel.TextColor3 = Color3.fromRGB(160, 160, 160)
+			sectionLabel.TextSize = 11
+			sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+			sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
+			sectionLabel.Parent = Window.TabHolder
+
+			local pad = Instance.new("UIPadding", sectionLabel)
+			pad.PaddingLeft = UDim.new(0, 10)
+
+			local arrow = Instance.new("ImageLabel")
+			arrow.Name = "SectionArrow"
+			arrow.BackgroundTransparency = 1
+			arrow.Image = "rbxassetid://10709790948"
+			arrow.ImageColor3 = Color3.fromRGB(160, 160, 160)
+			arrow.Size = UDim2.fromOffset(12, 12)
+			arrow.AnchorPoint = Vector2.new(1, 0.5)
+			arrow.Position = UDim2.new(1, -2, 0.5, 0)
+			arrow.Rotation = sec.Expanded and 0 or 180
+			arrow.Parent = sectionLabel
+
+			local trigger = Instance.new("TextButton")
+			trigger.Name = "SectionTrigger"
+			trigger.BackgroundTransparency = 1
+			trigger.Text = ""
+			trigger.AutoButtonColor = false
+			trigger.Size = UDim2.fromScale(1, 1)
+			trigger.ZIndex = sectionLabel.ZIndex + 2
+			trigger.Parent = sectionLabel
+
+			sec.Label = sectionLabel
+			sec.Set = function(state)
+				if sec.Expanded == state then return end
+				sec.Expanded = state
+				TweenService:Create(arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Rotation = state and 0 or 180
+				}):Play()
+				for _, tabButton in ipairs(sec.Tabs) do
+					if tabButton and tabButton.Parent then
+						tabButton.Visible = state
+					end
+				end
+
+				local sel = FindSelector()
+				if sel then
+					if CurrentActiveSection == sec then
+						sel.Visible = state
+					end
+				end
+			end
+
+			trigger.MouseButton1Click:Connect(function() sec.Set(not sec.Expanded) end)
+			trigger.MouseEnter:Connect(function() sectionLabel:SetAttribute("Hovering", true) end)
+			trigger.MouseLeave:Connect(function() sectionLabel:SetAttribute("Hovering", false) end)
+
+			CurrentSidebarSection = sec
+			table.insert(SidebarOrder, sectionLabel)
+			RelayoutSidebar()
+
+			local sectionApi = {}
+			setmetatable(sectionApi, { __index = sec })
+
+			function sectionApi:AddTab(tabOptions)
+				return Window:AddTab(tabOptions, sec)
+			end
+			sectionApi.CreateTab = sectionApi.AddTab
+			function sectionApi:Expand() sec.Set(true) end
+			function sectionApi:Collapse() sec.Set(false) end
+			function sectionApi:Toggle() sec.Set(not sec.Expanded) end
+
+			return sectionApi
+		end
+		Window.TabSection = Window.AddTabSection
+		Window.CreateTabSection = Window.AddTabSection
+	end
+
+	task.spawn(function()
+		task.wait(0.1)
+		pcall(function()
+			local ScreenGui = Window.Root and Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
+			if ScreenGui then
+				ScreenGui.IgnoreGuiInset = true
+			end
+		end)
+	end)
+
+	if Window.Root then
+		local Root = Window.Root
+		local savedPos = Root.Position
+		local savedSize = Root.Size
+		local activeTween = nil
+
+		local function PlayRootTween(props)
+			if activeTween then activeTween:Cancel() end
+			activeTween = TweenService:Create(Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+			activeTween:Play()
+		end
+
+		Window.Maximize = function(...)
+			local args = {...}
+			local targetState = nil
+
+			for _, v in ipairs(args) do
+				if type(v) == "boolean" then
+					targetState = v
+					break
+				end
+			end
+
+			local shouldMaximize
+			if targetState ~= nil then
+				shouldMaximize = targetState
+			else
+				shouldMaximize = not Window.Maximized
+			end
+
+			if not shouldMaximize then
+				Window.Maximized = false
+				PlayRootTween({
+					Position = savedPos,
+					Size = savedSize
+				})
+			else
+				if not Window.Maximized then
+					savedPos = Root.Position
+					savedSize = Root.Size
+				end
+				Window.Maximized = true
+				PlayRootTween({
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(1, 0, 1, 0)
+				})
+			end
+		end
+
+		local TITLEBAR_HEIGHT = 42
+		local TITLEBAR_BUTTONS_WIDTH = 130
+		local DRAG_THRESHOLD = 4
+
+		local function PointerToGui(input)
+			local p = Vector2.new(input.Position.X, input.Position.Y)
+			local gui = Root:FindFirstAncestorWhichIsA("ScreenGui")
+			if gui and gui.IgnoreGuiInset then
+				local inset = GuiService:GetGuiInset()
+				p = p + inset
+			end
+			return p
+		end
+
+		local DragHandle = Instance.new("TextButton")
+		DragHandle.Name = "WindowDragHandle"
+		DragHandle.BackgroundTransparency = 1
+		DragHandle.Text = ""
+		DragHandle.AutoButtonColor = false
+		DragHandle.Active = true
+		DragHandle.Position = UDim2.new(0, 0, 0, 0)
+		DragHandle.Size = UDim2.new(1, -TITLEBAR_BUTTONS_WIDTH, 0, TITLEBAR_HEIGHT)
+		DragHandle.ZIndex = 500
+		DragHandle.Parent = Root
+
+		local dragging = false
+		local dragInputObj = nil
+		local startPointer = Vector2.zero
+		local startPos = Root.Position
+
+		DragHandle.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			dragging = true
+			dragInputObj = input
+			startPointer = PointerToGui(input)
+			startPos = Root.Position
+			local endConn
+			endConn = input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					dragInputObj = nil
+					pcall(function() Window.Position = Root.Position end)
+					endConn:Disconnect()
+				end
+			end)
+		end)
+
+		Track(UserInputService.InputChanged:Connect(function(input)
+			if not dragging then return end
+			local isMove = input.UserInputType == Enum.UserInputType.MouseMovement
+			local isTouch = input.UserInputType == Enum.UserInputType.Touch and input == dragInputObj
+			if not (isMove or isTouch) then return end
+
+			local pointer = PointerToGui(input)
+			local delta = pointer - startPointer
+
+			if Window.Maximized then
+				if delta.Magnitude < DRAG_THRESHOLD then return end
+				if activeTween then
+					activeTween:Cancel()
+					activeTween = nil
+				end
+
+				local anchor = Root.AnchorPoint
+				local curAbs = Root.AbsolutePosition
+				local curSize = Root.AbsoluteSize
+				local curPos = Root.Position
+				local origin = curAbs - Vector2.new(curPos.X.Offset, curPos.Y.Offset) + Vector2.new(anchor.X * curSize.X, anchor.Y * curSize.Y)
+
+				local parent = Root.Parent
+				local parentSize = (parent and parent:IsA("GuiBase2d")) and parent.AbsoluteSize or workspace.CurrentCamera.ViewportSize
+				local newSize = Vector2.new(
+					savedSize.X.Scale * parentSize.X + savedSize.X.Offset,
+					savedSize.Y.Scale * parentSize.Y + savedSize.Y.Offset
+				)
+
+				local ratioX = math.clamp((startPointer.X - curAbs.X) / math.max(curSize.X, 1), 0, 1)
+				local grabY = math.clamp(startPointer.Y - curAbs.Y, 0, TITLEBAR_HEIGHT)
+				local topLeft = Vector2.new(pointer.X - ratioX * newSize.X, math.max(pointer.Y - grabY, origin.Y))
+
+				Window.Maximized = false
+				Root.Size = savedSize
+				Root.Position = UDim2.fromOffset(
+					topLeft.X - origin.X + anchor.X * newSize.X,
+					topLeft.Y - origin.Y + anchor.Y * newSize.Y
+				)
+
+				startPointer = pointer
+				startPos = Root.Position
+				return
+			end
+
+			Root.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end))
+	end
+
+	task.spawn(function()
+		task.wait(0.1)
+		CustomizeLibrary(Window)
+	end)
+
+	return Window
+end
+
+Library.CreateWindow = function(self, ...)
+	local Window = OriginalCreateWindow(self, ...)
+	local HookedWindow = HookWindow(Window)
+	Library.CurrentWindow = HookedWindow
+	return HookedWindow
+end
+
+if OriginalWindowCtor then
+	Library.Window = function(self, ...)
+		local Window = OriginalWindowCtor(self, ...)
+		local HookedWindow = HookWindow(Window)
+		Library.CurrentWindow = HookedWindow
+		return HookedWindow
+	end
+end
+
+local toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "DuckyToggleGui"
+toggleGui.ResetOnSpawn = false
+toggleGui.DisplayOrder = 100
+toggleGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
+
+local toggleBtn = Instance.new("ImageButton")
+local normalSize = UDim2.new(0, 150, 0, 150)
+local pressedSize = UDim2.new(0, 135, 0, 135)
+
+toggleBtn.Size = normalSize
+toggleBtn.AnchorPoint = Vector2.new(1, 0)
+toggleBtn.Position = UDim2.new(1, -10, 0, 10) 
+toggleBtn.BackgroundTransparency = 1
+toggleBtn.Image = "rbxassetid://116073591672187"
+toggleBtn.Parent = toggleGui
+toggleBtn.Active = true
+
+local dragging, dragInput, mousePos, framePos
+local dragMoved = false
+
+toggleBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragMoved = false
+		mousePos = input.Position
+		framePos = toggleBtn.Position
+		local endConn
+		endConn = input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+				endConn:Disconnect()
+			end
+		end)
+	end
+end)
+
+toggleBtn.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+end)
+
+Track(UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - mousePos
+		if delta.Magnitude > 6 then dragMoved = true end
+		toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+	end
+end))
+
+toggleBtn.MouseButton1Down:Connect(function()
+	TweenService:Create(toggleBtn, TweenInfo.new(0.1), {Size = pressedSize, ImageColor3 = Color3.fromRGB(200, 200, 255)}):Play()
+end)
+
+toggleBtn.MouseButton1Up:Connect(function()
+	TweenService:Create(toggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Size = normalSize, ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+end)
+
+toggleBtn.Activated:Connect(function()
+	if dragMoved then
+		dragMoved = false
+		return
+	end
+	if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
+end)
+
+table.insert(DestroyCallbacks, function()
+	if toggleGui then
+		toggleGui:Destroy()
+		toggleGui = nil
+	end
+end)
+
+return Library
