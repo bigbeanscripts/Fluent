@@ -1330,10 +1330,12 @@ local function HookWindow(Window)
 
 			return {
 				AddTab = function(_, tabOptions)
-					return self:AddTab(tabOptions)
+					return Window:AddTab(tabOptions)
 				end
 			}
 		end
+		Window.TabSection = Window.AddTabSection
+		Window.CreateTabSection = Window.AddTabSection
 	end
 
 	task.spawn(function()
