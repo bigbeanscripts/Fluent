@@ -1309,7 +1309,7 @@ local function HookWindow(Window)
 		CurrentTabIndex += 1
 		local ThisTabIndex = CurrentTabIndex
 
-		local TabName = tabOptions.Title or "Unknown"
+		local TabName = (type(tabOptions) == "table" and tabOptions.Title) or tostring(tabOptions or "Unknown")
 		CurrentActiveTabName = TabName
 		CurrentActiveSectionName = TabName
 
@@ -1346,7 +1346,7 @@ local function HookWindow(Window)
 
 			return {
 				AddTab = function(_, tabOptions)
-					local tabName = tabOptions.Title or "Unknown"
+					local tabName = (type(tabOptions) == "table" and tabOptions.Title) or tostring(tabOptions or "Unknown")
 					CurrentActiveTabName = tabName
 					CurrentActiveSectionName = tabName
 					return Window:AddTab(tabOptions)
