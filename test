@@ -227,6 +227,17 @@ local function HookContainer(container, ctx)
 				triggerBtn.ZIndex = 25
 				triggerBtn.Parent = titleLabel
 
+				triggerBtn.MouseEnter:Connect(function()
+					local hoverColor = Color3.fromRGB(255, 255, 255)
+					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = hoverColor}):Play()
+					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = hoverColor}):Play()
+				end)
+
+				triggerBtn.MouseLeave:Connect(function()
+					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = TargetTextColor}):Play()
+					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = TargetTextColor}):Play()
+				end)
+
 				triggerBtn.MouseButton1Click:Connect(function()
 					SetExpanded(not isExpanded)
 				end)
@@ -359,23 +370,23 @@ function CustomizeLibrary(Window)
 		return inst
 	end
 
-	TabHolder.CanvasSize = UDim2.new(0,0,0,0)
-	TabContainer.Position = UDim2.new(0, 12, 0, 60)
-	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -115)
+	-- Sticky Search Header Container (Pinned to top of sidebar)
+	local StickyHeaderContainer = Create("Frame", {
+		Name = "StickyHeaderContainer",
+		Parent = Sidebar,
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 14),
+		Size = UDim2.new(0, Window.TabWidth or 160, 0, 32),
+		ZIndex = 10
+	})
 
-	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
-	ListPadding.PaddingTop = UDim.new(0, 4)
-	ListPadding.PaddingBottom = UDim.new(0, 8)
-
-	-- Restored original search tab creation logic
 	local SearchTab = Create("TextButton", {
 		Name = "SearchTab",
-		Parent = TabHolder,
-		LayoutOrder = -10,
+		Parent = StickyHeaderContainer,
 		BackgroundColor3 = Sidebar.BackgroundColor3,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 32),
+		Size = UDim2.new(1, 0, 1, 0),
 		AutoButtonColor = false,
 		Text = ""
 	})
@@ -402,6 +413,14 @@ function CustomizeLibrary(Window)
 		Position = UDim2.new(0, 32, 0, 0),
 		Size = UDim2.new(1, -32, 1, 0)
 	})
+
+	TabHolder.CanvasSize = UDim2.new(0,0,0,0)
+	TabContainer.Position = UDim2.new(0, 12, 0, 54)
+	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -110)
+
+	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
+	ListPadding.PaddingTop = UDim.new(0, 4)
+	ListPadding.PaddingBottom = UDim.new(0, 8)
 
 	local ProfileButton = Create("TextButton", {
 		Name = "UserProfileButton",
@@ -706,7 +725,6 @@ function CustomizeLibrary(Window)
 		CloseDashboard()
 	end)
 
-	-- Spotlight (Search) Overlay with background dimming
 	local SpotlightOverlay = Create("Frame", {
 		Name = "SpotlightOverlay",
 		Parent = RootFrame,
