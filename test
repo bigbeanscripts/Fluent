@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
+local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 
 local ScriptStartTime = os.clock()
@@ -797,6 +798,7 @@ local function CustomizeLibrary(Window)
 		BackgroundColor3 = Color3.new(0,0,0),
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1,0,1,0),
+		ClipsDescendants = true,
 		ZIndex = 10000,
 		Visible = false
 	})
@@ -804,8 +806,8 @@ local function CustomizeLibrary(Window)
 	local SpotlightFrame = Create("Frame", {
 		Parent = SpotlightOverlay,
 		AnchorPoint = Vector2.new(0.5,0),
-		Position = UDim2.new(0.5, math.floor((SidebarWidth + SIDEBAR_SIDE_PAD) / 2), 0, 64),
-		Size = UDim2.new(0.85,0,0,45),
+		Position = UDim2.new(0.5, 0, 0, 56),
+		Size = UDim2.new(1, -48, 0, 45),
 		BackgroundColor3 = Color3.fromRGB(25,25,25),
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
@@ -918,7 +920,10 @@ local function CustomizeLibrary(Window)
 
 			for _, sectionLabel in ipairs(TabHolder:GetChildren()) do
 				if sectionLabel:IsA("TextLabel") and sectionLabel.Name == "FluentRenewedTabSection" then
-					sectionLabel.TextColor3 = SubColor
+					local labelColor = sectionLabel:GetAttribute("Hovering") and TargetTextColor or SubColor
+					sectionLabel.TextColor3 = labelColor
+					local sectionArrow = sectionLabel:FindFirstChild("SectionArrow")
+					if sectionArrow then sectionArrow.ImageColor3 = labelColor end
 				end
 			end
 
@@ -1296,8 +1301,12 @@ local function CustomizeLibrary(Window)
 						SectionExpandersByTitle[sectionName]()
 					end
 
+					pcall(function()
+						if Window.ExpandTabSection then Window:ExpandTabSection(item.TabIndex) end
+					end)
+
 					TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
-					TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(0.85, 0, 0, 45)}):Play()
+					TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(1, -48, 0, 45)}):Play()
 					task.wait(0.15)
 					SpotlightOverlay.Visible = false
 					SpotInput.Text = ""
@@ -1314,9 +1323,10 @@ local function CustomizeLibrary(Window)
 			end
 		end
 
-		local totalHeight = math.min(hits * 34 + 52, 300)
+		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - 56 - 16)
+		local totalHeight = math.min(hits * 34 + 52, 300, maxH)
 		if hits == 0 then totalHeight = 45 end
-		TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(0.85, 0, 0, totalHeight)}):Play()
+		TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -48, 0, totalHeight)}):Play()
 		SpotResults.CanvasSize = UDim2.new(0, 0, 0, hits * 34)
 	end
 
@@ -1347,6 +1357,8 @@ local function HookWindow(Window)
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
 	local SidebarOrder = {}
+	local CurrentSidebarSection = nil
+	local TabSectionByIndex = {}
 
 	local function RelayoutSidebar()
 		local holder = Window.TabHolder
@@ -1379,6 +1391,11 @@ local function HookWindow(Window)
 				if not before[c] and c:IsA("GuiButton") then
 					c:SetAttribute("OriginalOrder", c.LayoutOrder)
 					table.insert(SidebarOrder, c)
+					if CurrentSidebarSection then
+						table.insert(CurrentSidebarSection.Tabs, c)
+						TabSectionByIndex[ThisTabIndex] = CurrentSidebarSection
+						c.Visible = CurrentSidebarSection.Expanded
+					end
 					break
 				end
 			end
@@ -1401,8 +1418,17 @@ local function HookWindow(Window)
 		return Tab
 	end
 
+	Window.ExpandTabSection = function(_, tabIndex)
+		local sec = TabSectionByIndex[tabIndex]
+		if sec and not sec.Expanded then
+			sec.Set(true)
+		end
+	end
+
 	if Window.TabHolder then
-		Window.AddTabSection = function(self, sectionTitle)
+		Window.AddTabSection = function(self, sectionTitle, defaultExpanded)
+			local sec = {Tabs = {}, Expanded = defaultExpanded ~= false}
+
 			local sectionLabel = Instance.new("TextLabel")
 			sectionLabel.Name = "FluentRenewedTabSection"
 			sectionLabel.BackgroundTransparency = 1
@@ -1418,13 +1444,61 @@ local function HookWindow(Window)
 			local pad = Instance.new("UIPadding", sectionLabel)
 			pad.PaddingLeft = UDim.new(0, 10)
 
+			local arrow = Instance.new("ImageLabel")
+			arrow.Name = "SectionArrow"
+			arrow.BackgroundTransparency = 1
+			arrow.Image = "rbxassetid://10709790948"
+			arrow.ImageColor3 = Color3.fromRGB(160, 160, 160)
+			arrow.Size = UDim2.fromOffset(12, 12)
+			arrow.AnchorPoint = Vector2.new(1, 0.5)
+			arrow.Position = UDim2.new(1, -2, 0.5, 0)
+			arrow.Rotation = sec.Expanded and 0 or 180
+			arrow.Parent = sectionLabel
+
+			local trigger = Instance.new("TextButton")
+			trigger.Name = "SectionTrigger"
+			trigger.BackgroundTransparency = 1
+			trigger.Text = ""
+			trigger.AutoButtonColor = false
+			trigger.Size = UDim2.fromScale(1, 1)
+			trigger.ZIndex = sectionLabel.ZIndex + 2
+			trigger.Parent = sectionLabel
+
+			sec.Label = sectionLabel
+			sec.Set = function(state)
+				if sec.Expanded == state then return end
+				sec.Expanded = state
+				TweenService:Create(arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Rotation = state and 0 or 180
+				}):Play()
+				for _, tabButton in ipairs(sec.Tabs) do
+					if tabButton and tabButton.Parent then
+						tabButton.Visible = state
+					end
+				end
+			end
+
+			trigger.MouseButton1Click:Connect(function()
+				sec.Set(not sec.Expanded)
+			end)
+			trigger.MouseEnter:Connect(function()
+				sectionLabel:SetAttribute("Hovering", true)
+			end)
+			trigger.MouseLeave:Connect(function()
+				sectionLabel:SetAttribute("Hovering", false)
+			end)
+
+			CurrentSidebarSection = sec
 			table.insert(SidebarOrder, sectionLabel)
 			RelayoutSidebar()
 
 			return {
 				AddTab = function(_, tabOptions)
 					return Window:AddTab(tabOptions)
-				end
+				end,
+				Expand = function() sec.Set(true) end,
+				Collapse = function() sec.Set(false) end,
+				Toggle = function() sec.Set(not sec.Expanded) end
 			}
 		end
 		Window.TabSection = Window.AddTabSection
@@ -1442,8 +1516,16 @@ local function HookWindow(Window)
 	end)
 
 	if Window.Root then
-		local savedPos = Window.Root.Position
-		local savedSize = Window.Root.Size
+		local Root = Window.Root
+		local savedPos = Root.Position
+		local savedSize = Root.Size
+		local activeTween = nil
+
+		local function PlayRootTween(props)
+			if activeTween then activeTween:Cancel() end
+			activeTween = TweenService:Create(Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+			activeTween:Play()
+		end
 
 		Window.Maximize = function(...)
 			local args = {...}
@@ -1468,20 +1550,120 @@ local function HookWindow(Window)
 
 			if not shouldMaximize then
 				selfObj.Maximized = false
-				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				PlayRootTween({
 					Position = savedPos,
 					Size = savedSize
-				}):Play()
+				})
 			else
-				savedPos = selfObj.Root.Position
-				savedSize = selfObj.Root.Size
+				if not selfObj.Maximized then
+					savedPos = Root.Position
+					savedSize = Root.Size
+				end
 				selfObj.Maximized = true
-				TweenService:Create(selfObj.Root, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				PlayRootTween({
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(1, 0, 1, 0)
-				}):Play()
+				})
 			end
 		end
+
+		local TITLEBAR_HEIGHT = 42
+		local TITLEBAR_BUTTONS_WIDTH = 130
+		local DRAG_THRESHOLD = 4
+
+		local function PointerToGui(input)
+			local p = Vector2.new(input.Position.X, input.Position.Y)
+			local gui = Root:FindFirstAncestorWhichIsA("ScreenGui")
+			if gui and gui.IgnoreGuiInset then
+				local inset = GuiService:GetGuiInset()
+				p = p + inset
+			end
+			return p
+		end
+
+		local DragHandle = Instance.new("TextButton")
+		DragHandle.Name = "WindowDragHandle"
+		DragHandle.BackgroundTransparency = 1
+		DragHandle.Text = ""
+		DragHandle.AutoButtonColor = false
+		DragHandle.Active = true
+		DragHandle.Position = UDim2.new(0, 0, 0, 0)
+		DragHandle.Size = UDim2.new(1, -TITLEBAR_BUTTONS_WIDTH, 0, TITLEBAR_HEIGHT)
+		DragHandle.ZIndex = 500
+		DragHandle.Parent = Root
+
+		local dragging = false
+		local dragInputObj = nil
+		local startPointer = Vector2.zero
+		local startPos = Root.Position
+
+		DragHandle.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			dragging = true
+			dragInputObj = input
+			startPointer = PointerToGui(input)
+			startPos = Root.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+					dragInputObj = nil
+					pcall(function() Window.Position = Root.Position end)
+				end
+			end)
+		end)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if not dragging then return end
+			local isMove = input.UserInputType == Enum.UserInputType.MouseMovement
+			local isTouch = input.UserInputType == Enum.UserInputType.Touch and input == dragInputObj
+			if not (isMove or isTouch) then return end
+
+			local pointer = PointerToGui(input)
+			local delta = pointer - startPointer
+
+			if Window.Maximized then
+				if delta.Magnitude < DRAG_THRESHOLD then return end
+				if activeTween then
+					activeTween:Cancel()
+					activeTween = nil
+				end
+
+				local anchor = Root.AnchorPoint
+				local curAbs = Root.AbsolutePosition
+				local curSize = Root.AbsoluteSize
+				local curPos = Root.Position
+				local origin = curAbs - Vector2.new(curPos.X.Offset, curPos.Y.Offset) + Vector2.new(anchor.X * curSize.X, anchor.Y * curSize.Y)
+
+				local parent = Root.Parent
+				local parentSize = (parent and parent:IsA("GuiBase2d")) and parent.AbsoluteSize or workspace.CurrentCamera.ViewportSize
+				local newSize = Vector2.new(
+					savedSize.X.Scale * parentSize.X + savedSize.X.Offset,
+					savedSize.Y.Scale * parentSize.Y + savedSize.Y.Offset
+				)
+
+				local ratioX = math.clamp((startPointer.X - curAbs.X) / math.max(curSize.X, 1), 0, 1)
+				local grabY = math.clamp(startPointer.Y - curAbs.Y, 0, TITLEBAR_HEIGHT)
+				local topLeft = Vector2.new(pointer.X - ratioX * newSize.X, math.max(pointer.Y - grabY, origin.Y))
+
+				Window.Maximized = false
+				Root.Size = savedSize
+				Root.Position = UDim2.fromOffset(
+					topLeft.X - origin.X + anchor.X * newSize.X,
+					topLeft.Y - origin.Y + anchor.Y * newSize.Y
+				)
+
+				startPointer = pointer
+				startPos = Root.Position
+				return
+			end
+
+			Root.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end)
 	end
 
 	task.spawn(function()
