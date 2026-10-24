@@ -1467,10 +1467,10 @@ local function HookWindow(Window)
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
 	local SidebarOrder = {}
+	local CurrentSidebarSection = nil
 	local TabSectionByIndex = {}
 	local TabSectionByObject = setmetatable({}, {__mode = "k"})
 	local SelectorCache = nil
-	local lastSelectorSearch = 0
 
 	if Window.Root then
 		Window.Root.Destroying:Connect(function()
@@ -1486,19 +1486,6 @@ local function HookWindow(Window)
 		end)
 	end
 
-	local selectorSearchAttempts = 0
-
-	local function InExcludedTree(inst)
-		local p = inst.Parent
-		while p and p ~= Window.Root do
-			if p.Name == "ContainerHolder" or p.Name == "DashboardOverlay" or p.Name == "SpotlightOverlay" or p:IsA("GuiButton") then
-				return true
-			end
-			p = p.Parent
-		end
-		return false
-	end
-
 	local function FindSelector()
 		if SelectorCache and SelectorCache.Parent then return SelectorCache end
 		SelectorCache = nil
@@ -1506,54 +1493,59 @@ local function HookWindow(Window)
 			SelectorCache = Window.Selector
 			return SelectorCache
 		end
-		if not Window.Root or selectorSearchAttempts >= 15 then return nil end
-		if os.clock() - lastSelectorSearch < 1 then return nil end
-		lastSelectorSearch = os.clock()
-		selectorSearchAttempts += 1
+		if not Window.Root then return nil end
 
-		local sizeMatch = nil
 		for _, d in ipairs(Window.Root:GetDescendants()) do
-			if d:IsA("GuiObject") and not d:IsA("GuiButton") and not d:IsA("TextLabel") and not d:IsA("TextBox") and not d:IsA("ScrollingFrame") and not InExcludedTree(d) then
-				if d.Name == "Selector" then
-					SelectorCache = d
-					return d
-				end
-				local w, h = d.Size.X, d.Size.Y
-				if not sizeMatch and w.Scale == 0 and w.Offset >= 2 and w.Offset <= 6 and h.Scale == 0 and h.Offset <= 40 then
-					sizeMatch = d
+			if d:IsA("GuiObject") and d.Name == "Selector" then
+				SelectorCache = d
+				return d
+			end
+		end
+
+		local holder = Window.TabHolder
+		if holder and holder.Parent then
+			for _, d in ipairs(holder.Parent:GetDescendants()) do
+				if d:IsA("GuiObject") and not d:IsA("GuiButton") and not d:IsA("TextLabel") and not d:IsA("ScrollingFrame") then
+					local w, h = d.Size.X, d.Size.Y
+					if w.Offset >= 2 and w.Offset <= 6 and h.Offset >= 10 and h.Offset <= 45 then
+						SelectorCache = d
+						return d
+					end
 				end
 			end
 		end
-		SelectorCache = sizeMatch
-		return sizeMatch
+		return nil
 	end
 
-	Window.SyncSelector = function()
-		local sel = FindSelector()
-		if not sel then return end
-
-		local current = Window.SelectedTab
-		local activeBtn = nil
-		local activeSec = nil
-
-		if type(current) == "number" then
-			activeSec = TabSectionByIndex[current]
-			activeBtn = TabButtonsOnly[current]
-		elseif type(current) == "table" then
-			activeSec = TabSectionByObject[current]
-			activeBtn = TabButtonByTab[current]
+	local function GetSelectedTabButton()
+		local cur = Window.SelectedTab
+		if type(cur) == "table" then
+			local btn = rawget(cur, "Button") or TabButtonByTab[cur]
+			if btn and btn.Parent then return btn end
+		elseif type(cur) == "number" and Window.Tabs and Window.Tabs[cur] then
+			local t = Window.Tabs[cur]
+			local btn = rawget(t, "Button") or TabButtonByTab[t]
+			if btn and btn.Parent then return btn end
 		end
 
-		if not activeBtn or not activeSec then
-			local ContainerHolder = Window.Root and Window.Root:FindFirstChild("ContainerHolder", true)
-			if ContainerHolder then
-				for _, page in ipairs(ContainerHolder:GetChildren()) do
+		if Window.Tabs then
+			for _, t in ipairs(Window.Tabs) do
+				if rawget(t, "Selected") == true then
+					local btn = rawget(t, "Button") or TabButtonByTab[t]
+					if btn and btn.Parent then return btn end
+				end
+			end
+		end
+
+		local root = Window.Root
+		if root then
+			local ch = root:FindFirstChild("ContainerHolder", true)
+			if ch then
+				for _, page in ipairs(ch:GetChildren()) do
 					if page:IsA("ScrollingFrame") and page.Visible then
-						for idx, btn in ipairs(TabButtonsOnly) do
-							if (btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder then
-								activeBtn = btn
-								activeSec = TabSectionByIndex[idx] or TabSectionByButton[btn]
-								break
+						for _, btn in ipairs(TabButtonsOnly) do
+							if btn and btn.Parent and ((btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder) then
+								return btn
 							end
 						end
 					end
@@ -1561,24 +1553,21 @@ local function HookWindow(Window)
 			end
 		end
 
-		local shouldHide = false
-		if activeSec and activeSec.Expanded == false then
-			shouldHide = true
-		elseif activeBtn and activeBtn.Visible == false then
-			shouldHide = true
-		elseif not activeBtn then
-			shouldHide = true
-		end
+		return nil
+	end
 
-		if shouldHide then
+	Window.SyncSelector = function()
+		local sel = FindSelector()
+		if not sel then return end
+
+		local btn = GetSelectedTabButton()
+		if not btn or not btn.Parent or not btn.Visible then
 			sel.Visible = false
-			sel:SetAttribute("CollapseHidden", true)
 		else
 			sel.Visible = true
-			sel:SetAttribute("CollapseHidden", nil)
 			local holder = Window.TabHolder
-			if holder and activeBtn and activeBtn.Parent then
-				local targetY = activeBtn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y
+			if holder and holder.Parent then
+				local targetY = btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y
 				sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
 			end
 		end
@@ -1600,25 +1589,36 @@ local function HookWindow(Window)
 
 	Window.AddTab = function(self, ...)
 		local args = {...}
-		local tabOptions = args[1] or {}
+		local tabOptions = nil
 		local explicitSec = nil
-		for i = 2, #args do
-			if type(args[i]) == "table" and args[i].Tabs then
-				explicitSec = args[i]
-				break
+
+		for _, arg in ipairs(args) do
+			if type(arg) == "table" then
+				if arg.Tabs and arg.Set then
+					explicitSec = arg
+				elseif not tabOptions then
+					tabOptions = arg
+				end
 			end
 		end
+
+		if not explicitSec and type(self) == "table" and self.Tabs and self.Set then
+			explicitSec = self
+		end
+
+		local targetSec = explicitSec or CurrentSidebarSection
+		tabOptions = tabOptions or {}
 
 		CurrentTabIndex += 1
 		local ThisTabIndex = CurrentTabIndex
 
-		local holder = self.TabHolder
+		local holder = Window.TabHolder
 		local before = {}
 		if holder then
 			for _, c in ipairs(holder:GetChildren()) do before[c] = true end
 		end
 
-		local tabObj = OriginalAddTab(self, unpack(args))
+		local tabObj = OriginalAddTab(Window, tabOptions)
 
 		if holder then
 			for _, c in ipairs(holder:GetChildren()) do
@@ -1630,14 +1630,14 @@ local function HookWindow(Window)
 						TabButtonByTab[tabObj] = c
 					end
 
-					if explicitSec then
-						table.insert(explicitSec.Tabs, c)
-						TabSectionByIndex[ThisTabIndex] = explicitSec
-						TabSectionByButton[c] = explicitSec
+					if targetSec then
+						table.insert(targetSec.Tabs, c)
+						TabSectionByIndex[ThisTabIndex] = targetSec
+						TabSectionByButton[c] = targetSec
 						if type(tabObj) == "table" then 
-							TabSectionByObject[tabObj] = explicitSec 
+							TabSectionByObject[tabObj] = targetSec 
 						end
-						c.Visible = explicitSec.Expanded
+						c.Visible = targetSec.Expanded
 					end
 
 					c.MouseButton1Click:Connect(function()
@@ -1692,7 +1692,7 @@ local function HookWindow(Window)
 			sectionLabel.TextSize = 11
 			sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
 			sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
-			sectionLabel.Parent = self.TabHolder
+			sectionLabel.Parent = Window.TabHolder
 
 			local pad = Instance.new("UIPadding", sectionLabel)
 			pad.PaddingLeft = UDim.new(0, 10)
@@ -1741,10 +1741,13 @@ local function HookWindow(Window)
 			trigger.MouseEnter:Connect(function() sectionLabel:SetAttribute("Hovering", true) end)
 			trigger.MouseLeave:Connect(function() sectionLabel:SetAttribute("Hovering", false) end)
 
+			CurrentSidebarSection = sec
 			table.insert(SidebarOrder, sectionLabel)
 			RelayoutSidebar()
 
 			local sectionApi = {}
+			setmetatable(sectionApi, { __index = sec })
+
 			function sectionApi:AddTab(tabOptions)
 				return Window:AddTab(tabOptions, sec)
 			end
