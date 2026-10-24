@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
@@ -307,8 +308,8 @@ function CustomizeLibrary(Window)
 	end
 
 	TabHolder.CanvasSize = UDim2.new(0, 0, 0, 0)
-	TabContainer.Position = UDim2.new(0, 12, 0, 88)
-	TabContainer.Size = UDim2.new(0, tabWidth, 1, -146)
+	TabContainer.Position = UDim2.new(0, 12, 0, 84)
+	TabContainer.Size = UDim2.new(0, tabWidth, 1, -142)
 	TabContainer.ClipsDescendants = true
 
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
@@ -326,32 +327,24 @@ function CustomizeLibrary(Window)
 	local SearchBar = Sidebar:FindFirstChild("PinnedSearchBar") or Create("TextButton", {
 		Name = "PinnedSearchBar",
 		Parent = Sidebar,
-		BackgroundColor3 = Color3.fromRGB(24, 28, 38),
-		BackgroundTransparency = 0.35,
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 12, 0, 48),
-		Size = UDim2.new(0, tabWidth, 0, 32),
+		Size = UDim2.new(0, tabWidth, 0, 30),
 		AutoButtonColor = false,
 		Text = "",
 		ZIndex = 8
 	})
-	SearchBar.Size = UDim2.new(0, tabWidth, 0, 32)
-	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SearchBar})
-	local SearchStroke = SearchBar:FindFirstChildOfClass("UIStroke") or Create("UIStroke", {
-		Thickness = 1,
-		Transparency = 0.85,
-		Color = Color3.fromRGB(255, 255, 255),
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = SearchBar
-	})
+	SearchBar.Size = UDim2.new(0, tabWidth, 0, 30)
+	SearchBar.BackgroundTransparency = 1
 
 	local SearchIcon = SearchBar:FindFirstChildOfClass("ImageLabel") or Create("ImageLabel", {
 		Parent = SearchBar,
 		BackgroundTransparency = 1,
 		Image = Icons.Search,
 		ImageColor3 = Color3.fromRGB(160, 160, 160),
-		Position = UDim2.new(0, 10, 0.5, -7),
-		Size = UDim2.fromOffset(14, 14),
+		Position = UDim2.new(0, 8, 0.5, -8),
+		Size = UDim2.fromOffset(16, 16),
 		ZIndex = 9
 	})
 
@@ -361,7 +354,7 @@ function CustomizeLibrary(Window)
 		Text = "Search...",
 		Font = Enum.Font.GothamMedium,
 		TextColor3 = Color3.fromRGB(160, 160, 160),
-		TextSize = 12,
+		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Position = UDim2.new(0, 32, 0, 0),
 		Size = UDim2.new(1, -36, 1, 0),
@@ -369,12 +362,12 @@ function CustomizeLibrary(Window)
 	})
 
 	table.insert(ActiveConnections, SearchBar.MouseEnter:Connect(function()
-		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.15}):Play()
-		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.6}):Play()
+		TweenService:Create(SearchIcon, TweenInfo.new(0.15), {ImageColor3 = TargetTextColor}):Play()
+		TweenService:Create(SearchText, TweenInfo.new(0.15), {TextColor3 = TargetTextColor}):Play()
 	end))
 	table.insert(ActiveConnections, SearchBar.MouseLeave:Connect(function()
-		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.35}):Play()
-		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.85}):Play()
+		TweenService:Create(SearchIcon, TweenInfo.new(0.15), {ImageColor3 = SubColor}):Play()
+		TweenService:Create(SearchText, TweenInfo.new(0.15), {TextColor3 = SubColor}):Play()
 	end))
 
 	local ProfileButton = Sidebar:FindFirstChild("UserProfileButton") or Create("TextButton", {
@@ -687,8 +680,7 @@ function CustomizeLibrary(Window)
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 48),
 		Size = UDim2.new(0.72, 0, 0, 50),
-		BackgroundColor3 = Color3.fromRGB(16, 18, 24),
-		BackgroundTransparency = 0,
+		BackgroundColor3 = Color3.fromRGB(18, 20, 26),
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		ZIndex = 10001
@@ -702,6 +694,7 @@ function CustomizeLibrary(Window)
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		Parent = SpotlightFrame
 	})
+	local SpotlightGradient = Create("UIGradient", {Parent = SpotlightFrame})
 
 	local SpotIcon = Create("ImageLabel", {
 		Parent = SpotlightFrame,
@@ -735,7 +728,7 @@ function CustomizeLibrary(Window)
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 0, 0, 46),
 		Size = UDim2.new(1, 0, 0, 1),
-		BackgroundColor3 = Color3.fromRGB(38, 42, 54),
+		BackgroundColor3 = Color3.fromRGB(45, 50, 60),
 		ZIndex = 10002
 	})
 
@@ -809,15 +802,18 @@ function CustomizeLibrary(Window)
 				end
 			end
 
+			local TargetBgColor = Color3.fromRGB(22, 24, 32)
+
 			if SettingsLabelRef then TargetTextColor = SettingsLabelRef.TextColor3 end
+			if SettingsButtonRef then
+				TargetBgColor = SettingsButtonRef.BackgroundColor3
+			end
+
 			local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
-			SubColor = (brightness > 0.5) and Color3.fromRGB(140, 145, 155) or Color3.fromRGB(110, 115, 125)
+			SubColor = (brightness > 0.5) and Color3.fromRGB(150, 155, 165) or Color3.fromRGB(105, 110, 120)
 
 			local stroke = RootFrame:FindFirstChild("UIStroke")
 			CurrentFlashColor = stroke and stroke.Color or SubColor
-
-			SearchBar.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
-			SpotlightFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
 
 			SearchText.TextColor3 = SubColor
 			SearchIcon.ImageColor3 = SubColor
@@ -827,7 +823,26 @@ function CustomizeLibrary(Window)
 			SpotInput.TextColor3 = TargetTextColor
 			SpotIcon.ImageColor3 = SubColor
 			SpotInput.PlaceholderColor3 = SubColor
-			SpotSeparator.BackgroundColor3 = Color3.fromRGB(38, 42, 54)
+			SpotSeparator.BackgroundColor3 = stroke and stroke.Color or Color3.fromRGB(45, 50, 60)
+
+			if GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0 then
+				local kps = {}
+				for _, kp in ipairs(GradientRef.Color.Keypoints) do
+					table.insert(kps, ColorSequenceKeypoint.new(
+						kp.Time,
+						Color3.new(
+							math.clamp(kp.Value.R * 0.45, 0, 1),
+							math.clamp(kp.Value.G * 0.45, 0, 1),
+							math.clamp(kp.Value.B * 0.45, 0, 1)
+						)
+					))
+				end
+				SpotlightGradient.Color = ColorSequence.new(kps)
+				SpotlightGradient.Rotation = GradientRef.Rotation
+				SpotlightFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+			else
+				SpotlightFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
+			end
 
 			for _, secTitle in ipairs(AllSectionTitles) do
 				if secTitle and secTitle.Parent then
@@ -844,10 +859,43 @@ function CustomizeLibrary(Window)
 			end
 
 			if stroke then
-				SearchStroke.Color = stroke.Color
 				AvatarStroke.Color = stroke.Color
 				SpotlightStroke.Color = stroke.Color
 				DashStroke.Color = stroke.Color
+			end
+
+			if DashboardOverlay.Visible then
+				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(15, 20, 28)
+				local cardBaseColor = Color3.new(
+					math.clamp(windowBg.R * 0.72, 0, 1),
+					math.clamp(windowBg.G * 0.72, 0, 1),
+					math.clamp(windowBg.B * 0.72, 0, 1)
+				)
+				local boxFill = Color3.new(
+					math.clamp(windowBg.R * 0.48, 0, 1),
+					math.clamp(windowBg.G * 0.48, 0, 1),
+					math.clamp(windowBg.B * 0.48, 0, 1)
+				)
+				local boxOutline = stroke and stroke.Color or SubColor
+
+				DashboardCard.BackgroundColor3 = cardBaseColor
+				DashTitle.TextColor3 = TargetTextColor
+				DashClose.TextColor3 = TargetTextColor
+				DashStroke.Color = boxOutline
+
+				for _, item in ipairs(StatCardFrames) do
+					item.card.BackgroundColor3 = boxFill
+					item.stroke.Color = boxOutline
+					item.stroke.Transparency = 0.75
+				end
+
+				for _, lbl in ipairs(StatCardTitles) do
+					lbl.TextColor3 = TargetTextColor
+				end
+
+				for _, val in ipairs(StatCardValues) do
+					val.TextColor3 = SubColor
+				end
 			end
 
 			RefreshAllTabButtons()
@@ -1332,15 +1380,17 @@ local function HookWindow(Window)
 
 			table.insert(ActiveConnections, TopBar.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					if Window.Maximized then
-						isDraggingMax = true
-						local mouse = UserInputService:GetMouseLocation()
-						local topBarAbs = TopBar.AbsolutePosition
-						local topBarW = TopBar.AbsoluteSize.X
-						if topBarW > 0 then
-							dragOffsetRatio = math.clamp((mouse.X - topBarAbs.X) / topBarW, 0.1, 0.9)
-						else
-							dragOffsetRatio = 0.5
+					local mouse = UserInputService:GetMouseLocation()
+					local topBarAbs = TopBar.AbsolutePosition
+					local topBarSize = TopBar.AbsoluteSize
+					if mouse.X >= topBarAbs.X and mouse.X <= topBarAbs.X + topBarSize.X and mouse.Y >= topBarAbs.Y and mouse.Y <= topBarAbs.Y + topBarSize.Y then
+						if Window.Maximized then
+							isDraggingMax = true
+							if topBarSize.X > 0 then
+								dragOffsetRatio = math.clamp((mouse.X - topBarAbs.X) / topBarSize.X, 0.1, 0.9)
+							else
+								dragOffsetRatio = 0.5
+							end
 						end
 					end
 				end
@@ -1355,7 +1405,7 @@ local function HookWindow(Window)
 					local restoredW = savedSize.X.Offset > 100 and savedSize.X.Offset or 580
 					local restoredH = savedSize.Y.Offset > 100 and savedSize.Y.Offset or 460
 					local newX = math.clamp(mouse.X - (restoredW * dragOffsetRatio), 0, math.max(0, workspace.CurrentCamera.ViewportSize.X - restoredW))
-					local newY = math.clamp(mouse.Y - 20, 0, math.max(0, workspace.CurrentCamera.ViewportSize.Y - restoredH))
+					local newY = math.clamp(mouse.Y - 18, 0, math.max(0, workspace.CurrentCamera.ViewportSize.Y - restoredH))
 
 					Window.Root.Size = UDim2.fromOffset(restoredW, restoredH)
 					Window.Root.Position = UDim2.fromOffset(newX, newY)
