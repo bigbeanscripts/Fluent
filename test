@@ -1546,28 +1546,25 @@ local function HookWindow(Window)
 		end
 
 		sel.Visible = true
-		local holder = Window.TabHolder
-		if holder and holder.Parent and btn.AbsoluteSize.Y > 0 then
-			local btnCenterY = (btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y) + (btn.AbsoluteSize.Y * 0.5)
-			local targetY = math.floor(btnCenterY - (sel.AbsoluteSize.Y * (0.5 - sel.AnchorPoint.Y)))
-			if math.abs(sel.Position.Y.Offset - targetY) > 0.5 then
-				sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
-			end
-		end
 	end
 
 	local OriginalSelectTab = Window.SelectTab
 	if OriginalSelectTab then
 		Window.SelectTab = function(self, tabArg)
 			local res = OriginalSelectTab(self, tabArg)
-			local targetTab = (type(tabArg) == "number" and Window.Tabs and Window.Tabs[tabArg]) or tabArg
-			if targetTab then
-				local b = TabButtonByTab[targetTab] or rawget(targetTab, "_ButtonInstance") or rawget(targetTab, "Button")
-				if b then
-					CurrentActiveButton = b
-					CurrentActiveSection = TabSectionByButton[b]
-				end
+			local btn = nil
+
+			if type(tabArg) == "number" then
+				btn = TabButtonsOnly[tabArg]
+			elseif type(tabArg) == "table" then
+				btn = TabButtonByTab[tabArg] or tabArg._ButtonInstance
 			end
+
+			if btn then
+				CurrentActiveButton = btn
+				CurrentActiveSection = TabSectionByButton[btn]
+			end
+
 			task.defer(function()
 				if Window.SyncSelector then Window.SyncSelector() end
 			end)
@@ -1653,9 +1650,8 @@ local function HookWindow(Window)
 					c.MouseButton1Click:Connect(function()
 						CurrentActiveButton = c
 						CurrentActiveSection = targetSec
-						task.defer(function()
-							if Window.SyncSelector then Window.SyncSelector() end
-						end)
+						local sel = FindSelector()
+						if sel then sel.Visible = true end
 					end)
 					break
 				end
