@@ -118,10 +118,13 @@ local function HookContainer(container, ctx)
 	if container.AddToggle and not container.__HookAddToggle then
 		container.__HookAddToggle = true
 		local Old = container.AddToggle
-		container.AddToggle = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddToggle = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Toggle", title, el)
 				return el
 			end
@@ -132,10 +135,13 @@ local function HookContainer(container, ctx)
 	if container.AddDropdown and not container.__HookAddDropdown then
 		container.__HookAddDropdown = true
 		local Old = container.AddDropdown
-		container.AddDropdown = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddDropdown = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Dropdown", title, el)
 				return el
 			end
@@ -146,10 +152,13 @@ local function HookContainer(container, ctx)
 	if container.AddButton and not container.__HookAddButton then
 		container.__HookAddButton = true
 		local Old = container.AddButton
-		container.AddButton = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddButton = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Button", title, el)
 				return el
 			end
@@ -160,10 +169,13 @@ local function HookContainer(container, ctx)
 	if container.AddParagraph and not container.__HookAddParagraph then
 		container.__HookAddParagraph = true
 		local Old = container.AddParagraph
-		container.AddParagraph = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddParagraph = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Paragraph", title, el)
 				return el
 			end
@@ -174,10 +186,13 @@ local function HookContainer(container, ctx)
 	if container.AddSlider and not container.__HookAddSlider then
 		container.__HookAddSlider = true
 		local Old = container.AddSlider
-		container.AddSlider = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddSlider = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Slider", title, el)
 				return el
 			end
@@ -188,10 +203,13 @@ local function HookContainer(container, ctx)
 	if container.AddInput and not container.__HookAddInput then
 		container.__HookAddInput = true
 		local Old = container.AddInput
-		container.AddInput = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddInput = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Input", title, el)
 				return el
 			end
@@ -202,10 +220,13 @@ local function HookContainer(container, ctx)
 	if container.AddKeybind and not container.__HookAddKeybind then
 		container.__HookAddKeybind = true
 		local Old = container.AddKeybind
-		container.AddKeybind = function(self, arg1, arg2, ...)
-			local success, el = pcall(Old, self, arg1, arg2, ...)
+		container.AddKeybind = function(self, ...)
+			local args = {...}
+			local success, el = pcall(function()
+				return Old(self, unpack(args))
+			end)
 			if success then
-				local title = GetTitle(arg1, arg2)
+				local title = GetTitle(args[1], args[2])
 				RecordElement(ctx, "Keybind", title, el)
 				return el
 			end
@@ -217,21 +238,24 @@ local function HookContainer(container, ctx)
 		container.__SectionHooked = true
 		local OldAddSection = container.AddSection
 
-		container.AddSection = function(self, arg1, arg2, ...)
-			local title = GetTitle(arg1, arg2)
+		container.AddSection = function(self, ...)
+			local args = {...}
+			local title = GetTitle(args[1], args[2])
 			if ctx.SetSection then ctx.SetSection(title) end
 
 			local defaultExpanded = true
-			if type(arg2) == "boolean" then
-				defaultExpanded = arg2
-			elseif type(arg1) == "table" and type(arg1.Default) == "boolean" then
-				defaultExpanded = arg1.Default
+			if type(args[2]) == "boolean" then
+				defaultExpanded = args[2]
+			elseif type(args[1]) == "table" and type(args[1].Default) == "boolean" then
+				defaultExpanded = args[1].Default
 			end
 
 			local isExpanded = defaultExpanded
 			local scrollFrame = GetScrollFrame(self)
 
-			local success, sec = pcall(OldAddSection, self, tostring(title or "Section"))
+			local success, sec = pcall(function()
+				return OldAddSection(self, tostring(title or "Section"))
+			end)
 			if not success then return nil end
 
 			RecordElement(ctx, "Section", title, sec)
@@ -326,8 +350,11 @@ local function HookContainer(container, ctx)
 			local methods = {"AddToggle", "AddDropdown", "AddButton", "AddParagraph", "AddSlider", "AddInput", "AddKeybind"}
 			for _, m in ipairs(methods) do
 				sub[m] = function(_, ...)
+					local innerArgs = {...}
 					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
-					local success, el = pcall(self[m], self, ...)
+					local success, el = pcall(function()
+						return self[m](self, unpack(innerArgs))
+					end)
 					if not success then return nil end
 
 					if scrollFrame then
@@ -1784,18 +1811,13 @@ local function HookWindow(Window)
 			activeTween:Play()
 		end
 
-		Window.Maximize = function(...)
+		Window.Maximize = function(self, ...)
 			SafeCall("Maximize", function()
 				local args = {...}
-				local selfObj = Window
+				local selfObj = self or Window
 				local targetState = nil
 
-				if type(args[1]) == "table" and args[1].Root then
-					selfObj = args[1]
-					if type(args[2]) == "boolean" then
-						targetState = args[2]
-					end
-				elseif type(args[1]) == "boolean" then
+				if type(args[1]) == "boolean" then
 					targetState = args[1]
 				end
 
