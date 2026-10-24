@@ -371,8 +371,9 @@ function CustomizeLibrary(Window)
 		return inst
 	end
 
+	TabContainer.ClipsDescendants = true
 	TabContainer.Position = UDim2.new(0, 12, 0, 96)
-	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -151)
+	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -148)
 
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
 	ListPadding.PaddingTop = UDim.new(0, 4)
@@ -972,7 +973,7 @@ function CustomizeLibrary(Window)
 	local function PickFlashTarget(node)
 		if not node or typeof(node) ~= "Instance" then return nil end
 		local curr = node
-		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
+		while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") then
 			curr = curr.Parent
 		end
 		return curr or node
@@ -1301,21 +1302,24 @@ local function HookWindow(Window)
 
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
+	local CurrentActiveTabName = "Unknown"
+	local CurrentActiveSectionName = "Unknown"
 
 	Window.AddTab = function(self, tabOptions)
 		CurrentTabIndex += 1
 		local ThisTabIndex = CurrentTabIndex
 
-		local Tab = OriginalAddTab(self, tabOptions)
-
 		local TabName = tabOptions.Title or "Unknown"
-		local CurrentSection = TabName
+		CurrentActiveTabName = TabName
+		CurrentActiveSectionName = TabName
+
+		local Tab = OriginalAddTab(self, tabOptions)
 
 		local ctx = {
 			TabName = TabName,
 			TabIndex = ThisTabIndex,
-			GetSection = function() return CurrentSection end,
-			SetSection = function(v) CurrentSection = tostring(v or TabName) end
+			GetSection = function() return CurrentActiveSectionName end,
+			SetSection = function(v) CurrentActiveSectionName = tostring(v or TabName) end
 		}
 
 		HookContainer(Tab, ctx)
@@ -1342,6 +1346,9 @@ local function HookWindow(Window)
 
 			return {
 				AddTab = function(_, tabOptions)
+					local tabName = tabOptions.Title or "Unknown"
+					CurrentActiveTabName = tabName
+					CurrentActiveSectionName = tabName
 					return Window:AddTab(tabOptions)
 				end
 			}
