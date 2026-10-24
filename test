@@ -45,6 +45,8 @@ local TABS_PROFILE_GAP = 6
 local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
 local MAX_SEARCH_RESULTS = 40
 
+local SPOTLIGHT_TOP_OFFSET = 52
+
 local function Track(conn)
 	table.insert(GlobalConnections, conn)
 	return conn
@@ -816,8 +818,8 @@ local function CustomizeLibrary(Window)
 
 	local SpotlightFrame = Create("Frame", {
 		Parent = SpotlightOverlay,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.38, 0),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, SPOTLIGHT_TOP_OFFSET),
 		Size = UDim2.new(0.85, 0, 0, 45),
 		BackgroundColor3 = Color3.fromRGB(25,25,25),
 		BorderSizePixel = 0,
@@ -1044,11 +1046,17 @@ local function CustomizeLibrary(Window)
 	task.delay(0.2, UpdateColors)
 	task.delay(0.5, UpdateColors)
 
+	local colorDebounce = false
 	Track(UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			task.defer(UpdateColors)
-			task.delay(0.1, UpdateColors)
-			task.delay(0.25, UpdateColors)
+			if not colorDebounce then
+				colorDebounce = true
+				task.defer(UpdateColors)
+				task.delay(0.15, function()
+					UpdateColors()
+					colorDebounce = false
+				end)
+			end
 		end
 	end))
 
@@ -1465,16 +1473,16 @@ local function CustomizeLibrary(Window)
 
 		local isMax = Window.Maximized or false
 		local widthScale = isMax and 0.88 or 0.85
-		local targetPosY = isMax and 0.28 or 0.38
 		local rootH = RootFrame.AbsoluteSize.Y
 
-		local maxAllowedHeight = isMax and math.clamp(math.floor(rootH * 0.65), 450, 750) or math.min(320, math.floor(rootH * 0.70))
+		local maxAllowedHeight = math.clamp(rootH - SPOTLIGHT_TOP_OFFSET - 35, 100, 750)
 		local totalHeight = math.min(hits * 34 + 52, maxAllowedHeight)
 		if hits == 0 then totalHeight = 45 end
 
+		SpotlightFrame.AnchorPoint = Vector2.new(0.5, 0)
 		TweenService:Create(SpotlightFrame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Size = UDim2.new(widthScale, 0, 0, totalHeight),
-			Position = UDim2.new(0.5, 0, targetPosY, 0)
+			Position = UDim2.new(0.5, 0, 0, SPOTLIGHT_TOP_OFFSET)
 		}):Play()
 		SpotResults.CanvasSize = UDim2.new(0, 0, 0, hits * 34)
 	end
@@ -1500,8 +1508,8 @@ local function CustomizeLibrary(Window)
 		UpdateColors()
 		local isMax = Window.Maximized or false
 		local widthScale = isMax and 0.88 or 0.85
-		local targetPosY = isMax and 0.28 or 0.38
-		SpotlightFrame.Position = UDim2.new(0.5, 0, targetPosY, 0)
+		SpotlightFrame.AnchorPoint = Vector2.new(0.5, 0)
+		SpotlightFrame.Position = UDim2.new(0.5, 0, 0, SPOTLIGHT_TOP_OFFSET)
 		SpotlightFrame.Size = UDim2.new(widthScale, 0, 0, 45)
 		SpotlightOverlay.Visible = true
 		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.4}):Play()
@@ -1935,17 +1943,17 @@ local function HookWindow(Window)
 						end
 						local isMax = Window.Maximized or false
 						local widthScale = isMax and 0.88 or 0.85
-						local targetPosY = isMax and 0.28 or 0.38
 						local rootH = RootFrame.AbsoluteSize.Y
-						local maxAllowedHeight = isMax and math.clamp(math.floor(rootH * 0.65), 450, 750) or math.min(320, math.floor(rootH * 0.70))
+						local maxAllowedHeight = math.clamp(rootH - SPOTLIGHT_TOP_OFFSET - 35, 100, 750)
 						local totalHeight = math.min(count * 34 + 52, maxAllowedHeight)
 						if count == 0 then totalHeight = 45 end
 
 						local spotFrame = overlay:FindFirstChild("SpotlightFrame") or overlay:FindFirstChildOfClass("Frame")
 						if spotFrame then
+							spotFrame.AnchorPoint = Vector2.new(0.5, 0)
 							TweenService:Create(spotFrame, TweenInfo.new(0.12), {
 								Size = UDim2.new(widthScale, 0, 0, totalHeight),
-								Position = UDim2.new(0.5, 0, targetPosY, 0)
+								Position = UDim2.new(0.5, 0, 0, SPOTLIGHT_TOP_OFFSET)
 							}):Play()
 						end
 					end
