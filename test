@@ -1371,7 +1371,7 @@ local function CustomizeLibrary(Window)
 			end
 		end
 
-		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - SpotlightTop - 16)
+		local maxH = math.max(45, SpotlightOverlay.AbsoluteSize.Y - 36 - 16)
 		local totalHeight = math.min(hits * 34 + 52, 300, maxH)
 		if hits == 0 then totalHeight = 45 end
 		TweenService:Create(SpotlightFrame, TweenInfo.new(0.1), {Size = UDim2.new(1, -48, 0, totalHeight)}):Play()
