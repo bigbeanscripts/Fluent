@@ -1547,9 +1547,12 @@ local function HookWindow(Window)
 
 		sel.Visible = true
 		local holder = Window.TabHolder
-		if holder and holder.Parent then
-			local targetY = btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y
-			sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
+		if holder and holder.Parent and btn.AbsoluteSize.Y > 0 then
+			local btnCenterY = (btn.AbsolutePosition.Y - holder.AbsolutePosition.Y + holder.CanvasPosition.Y) + (btn.AbsoluteSize.Y * 0.5)
+			local targetY = math.floor(btnCenterY - (sel.AbsoluteSize.Y * (0.5 - sel.AnchorPoint.Y)))
+			if math.abs(sel.Position.Y.Offset - targetY) > 0.5 then
+				sel.Position = UDim2.new(sel.Position.X.Scale, sel.Position.X.Offset, 0, targetY)
+			end
 		end
 	end
 
