@@ -371,24 +371,34 @@ function CustomizeLibrary(Window)
 		return inst
 	end
 
-	TabHolder.CanvasSize = UDim2.new(0,0,0,0)
-	TabContainer.Position = UDim2.new(0, 12, 0, 60)
-	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -115)
+	TabContainer.Position = UDim2.new(0, 12, 0, 96)
+	TabContainer.Size = UDim2.new(0, Window.TabWidth or 160, 1, -151)
 
 	local ListPadding = TabHolder:FindFirstChildOfClass("UIPadding") or Create("UIPadding", {Parent = TabHolder})
 	ListPadding.PaddingTop = UDim.new(0, 4)
 	ListPadding.PaddingBottom = UDim.new(0, 8)
 
-	local SearchTab = Create("TextButton", {
-		Name = "SearchTab",
-		Parent = TabHolder,
-		LayoutOrder = -10,
+	local SearchBarFrame = Create("Frame", {
+		Name = "SearchBarFrame",
+		Parent = Sidebar,
 		BackgroundColor3 = Sidebar.BackgroundColor3,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 32),
+		Position = UDim2.new(0, 12, 0, 56),
+		Size = UDim2.new(0, Window.TabWidth or 160, 0, 32),
+		ZIndex = 10
+	})
+
+	local SearchTab = Create("TextButton", {
+		Name = "SearchTab",
+		Parent = SearchBarFrame,
+		BackgroundColor3 = Sidebar.BackgroundColor3,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 1, 0),
 		AutoButtonColor = false,
-		Text = ""
+		Text = "",
+		ZIndex = 11
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SearchTab})
 	local SearchStroke = Create("UIStroke", {Thickness = 1, Transparency = 0.8, Parent = SearchTab})
@@ -399,7 +409,8 @@ function CustomizeLibrary(Window)
 		Image = Icons.Search,
 		ImageColor3 = Color3.fromRGB(160, 160, 160),
 		Position = UDim2.new(0, 10, 0.5, -7),
-		Size = UDim2.fromOffset(16, 16)
+		Size = UDim2.fromOffset(16, 16),
+		ZIndex = 12
 	})
 
 	local SearchText = Create("TextLabel", {
@@ -411,7 +422,8 @@ function CustomizeLibrary(Window)
 		TextSize = 13,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Position = UDim2.new(0, 32, 0, 0),
-		Size = UDim2.new(1, -32, 1, 0)
+		Size = UDim2.new(1, -32, 1, 0),
+		ZIndex = 12
 	})
 
 	local ProfileButton = Create("TextButton", {
