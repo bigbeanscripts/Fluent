@@ -192,7 +192,6 @@ local function HookContainer(container, ctx)
 	return container
 end
 
-local SpriteSheet = "rbxassetid://118976126805967"
 local Icons = {
 	Search    = "rbxassetid://6031154871",
 	Toggle    = "rbxassetid://7734091286",
@@ -203,11 +202,7 @@ local Icons = {
 	Section   = "rbxassetid://7733799901",
 	Keybind   = "rbxassetid://7733920644",
 	Misc      = "rbxassetid://7733954611",
-	Paragraph = {
-		Image = SpriteSheet,
-		ImageRectSize = Vector2.new(64, 64),
-		ImageRectOffset = Vector2.new(448, 832)
-	}
+	Paragraph = "rbxassetid://7733920644", -- Simple paper/document icon
 }
 
 function CustomizeLibrary(Window)
@@ -564,7 +559,6 @@ function CustomizeLibrary(Window)
 			SpotInput.PlaceholderColor3 = SubColor
 			SpotSeparator.BackgroundColor3 = SubColor
 
-			-- Restored original dynamic color handling for dashboard card and theme backgrounds
 			if DashboardOverlay.Visible then
 				local windowBg = (GradientRef and GradientRef.Color and #GradientRef.Color.Keypoints > 0) and GradientRef.Color.Keypoints[1].Value or Color3.fromRGB(15, 20, 28)
 				local cardBaseColor = Color3.new(math.clamp(windowBg.R * 0.72, 0, 1), math.clamp(windowBg.G * 0.72, 0, 1), math.clamp(windowBg.B * 0.72, 0, 1))
@@ -693,7 +687,22 @@ function CustomizeLibrary(Window)
 					Text = item.Name, TextColor3 = SpotInput.TextColor3,
 					Font = Enum.Font.GothamMedium, TextSize = 13,
 					TextXAlignment = Enum.TextXAlignment.Left,
-					Position = UDim2.new(0, 32, 0, 0), Size = UDim2.new(1, -32, 1, 0), ZIndex = 10006
+					Position = UDim2.new(0, 32, 0, 0), Size = UDim2.new(0.6, 0, 1, 0), ZIndex = 10006,
+					TextTruncate = Enum.TextTruncate.AtEnd
+				})
+
+				local displayPath = item.Tab
+				if item.Section and item.Section ~= item.Tab then
+					displayPath = item.Tab .. " > " .. item.Section
+				end
+
+				Create("TextLabel", {
+					Name = "TabLabel", Parent = btn, BackgroundTransparency = 1,
+					Text = displayPath, TextColor3 = Color3.fromRGB(140, 145, 155),
+					Font = Enum.Font.Gotham, TextSize = 11,
+					TextXAlignment = Enum.TextXAlignment.Right,
+					Position = UDim2.new(0.6, 0, 0, 0), Size = UDim2.new(0.4, -12, 1, 0), ZIndex = 10006,
+					TextTruncate = Enum.TextTruncate.AtEnd
 				})
 
 				btn.MouseEnter:Connect(function()
