@@ -305,8 +305,8 @@ function CustomizeLibrary(Window)
 	local SearchBar = Sidebar:FindFirstChild("PinnedSearchBar") or Create("TextButton", {
 		Name = "PinnedSearchBar",
 		Parent = Sidebar,
-		BackgroundColor3 = Color3.fromRGB(15, 17, 22),
-		BackgroundTransparency = 0.45,
+		BackgroundColor3 = Color3.fromRGB(24, 28, 38),
+		BackgroundTransparency = 0.3,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 12, 0, 48),
 		Size = UDim2.new(1, -24, 0, 32),
@@ -317,7 +317,7 @@ function CustomizeLibrary(Window)
 	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = SearchBar})
 	local SearchStroke = SearchBar:FindFirstChildOfClass("UIStroke") or Create("UIStroke", {
 		Thickness = 1,
-		Transparency = 0.88,
+		Transparency = 0.85,
 		Color = Color3.fromRGB(255, 255, 255),
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		Parent = SearchBar
@@ -347,12 +347,12 @@ function CustomizeLibrary(Window)
 	})
 
 	SearchBar.MouseEnter:Connect(function()
-		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.2}):Play()
-		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.65}):Play()
+		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.1}):Play()
+		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.6}):Play()
 	end)
 	SearchBar.MouseLeave:Connect(function()
-		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.45}):Play()
-		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.88}):Play()
+		TweenService:Create(SearchBar, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
+		TweenService:Create(SearchStroke, TweenInfo.new(0.15), {Transparency = 0.85}):Play()
 	end)
 
 	local ProfileButton = Sidebar:FindFirstChild("UserProfileButton") or Create("TextButton", {
@@ -641,11 +641,15 @@ function CustomizeLibrary(Window)
 		CloseDashboard()
 	end)
 
-	local SpotlightOverlay = RootFrame:FindFirstChild("SpotlightOverlay") or Create("TextButton", {
+	local oldOverlay = RootFrame:FindFirstChild("SpotlightOverlay")
+	if oldOverlay then oldOverlay:Destroy() end
+
+	local SpotlightOverlay = Create("TextButton", {
 		Name = "SpotlightOverlay",
 		Parent = RootFrame,
 		BackgroundColor3 = Color3.new(0, 0, 0),
 		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 0, 0, 0),
 		Size = UDim2.new(1, 0, 1, 0),
 		Text = "",
 		AutoButtonColor = false,
@@ -654,7 +658,7 @@ function CustomizeLibrary(Window)
 		Visible = false
 	})
 
-	local SpotlightFrame = SpotlightOverlay:FindFirstChild("SpotlightFrame") or Create("Frame", {
+	local SpotlightFrame = Create("Frame", {
 		Name = "SpotlightFrame",
 		Parent = SpotlightOverlay,
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -665,11 +669,9 @@ function CustomizeLibrary(Window)
 		ClipsDescendants = true,
 		ZIndex = 10001
 	})
-	SpotlightFrame.AnchorPoint = Vector2.new(0.5, 0)
-	SpotlightFrame.Position = UDim2.new(0.5, 0, 0, 52)
-	Create("UISizeConstraint", {Parent = SpotlightFrame, MinSize = Vector2.new(360, 50), MaxSize = Vector2.new(480, 340)})
+	Create("UISizeConstraint", {Parent = SpotlightFrame, MinSize = Vector2.new(360, 50), MaxSize = Vector2.new(500, 340)})
 	Create("UICorner", {CornerRadius = UDim.new(0, 9), Parent = SpotlightFrame})
-	local SpotlightStroke = SpotlightFrame:FindFirstChildOfClass("UIStroke") or Create("UIStroke", {
+	local SpotlightStroke = Create("UIStroke", {
 		Thickness = 1,
 		Transparency = 0.82,
 		Color = Color3.fromRGB(255, 255, 255),
@@ -677,7 +679,7 @@ function CustomizeLibrary(Window)
 		Parent = SpotlightFrame
 	})
 
-	local SpotIcon = SpotlightFrame:FindFirstChildOfClass("ImageLabel") or Create("ImageLabel", {
+	local SpotIcon = Create("ImageLabel", {
 		Parent = SpotlightFrame,
 		BackgroundTransparency = 1,
 		Image = Icons.Search,
@@ -686,7 +688,7 @@ function CustomizeLibrary(Window)
 		ZIndex = 10002
 	})
 
-	local SpotInput = SpotlightFrame:FindFirstChildOfClass("TextBox") or Create("TextBox", {
+	local SpotInput = Create("TextBox", {
 		Parent = SpotlightFrame,
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 42, 0, 0),
@@ -700,7 +702,7 @@ function CustomizeLibrary(Window)
 		ZIndex = 10002
 	})
 
-	local SpotSeparator = SpotlightFrame:FindFirstChild("SpotSeparator") or Create("Frame", {
+	local SpotSeparator = Create("Frame", {
 		Name = "SpotSeparator",
 		Parent = SpotlightFrame,
 		BorderSizePixel = 0,
@@ -710,7 +712,7 @@ function CustomizeLibrary(Window)
 		ZIndex = 10002
 	})
 
-	local SpotResults = SpotlightFrame:FindFirstChildOfClass("ScrollingFrame") or Create("ScrollingFrame", {
+	local SpotResults = Create("ScrollingFrame", {
 		Parent = SpotlightFrame,
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 0, 0, 48),
@@ -728,24 +730,15 @@ function CustomizeLibrary(Window)
 
 	local function RefreshTabStyles()
 		local curSel = Window.SelectedTab
-		local rootBg = (RootFrame and RootFrame.BackgroundColor3) or Color3.fromRGB(20, 22, 28)
-		local tabBg = Color3.new(
-			math.clamp(rootBg.R * 1.25, 0, 1),
-			math.clamp(rootBg.G * 1.25, 0, 1),
-			math.clamp(rootBg.B * 1.25, 0, 1)
-		)
+		local tabBg = Color3.fromRGB(28, 32, 42)
 
 		for _, rec in ipairs(TabButtonRecords) do
 			if rec.Button and rec.Button.Parent then
 				rec.Button.BackgroundColor3 = tabBg
 				local isSel = (curSel == rec.Index)
-				TweenService:Create(rec.Button, TweenInfo.new(0.12), {
-					BackgroundTransparency = isSel and 0.15 or 0.6
-				}):Play()
+				rec.Button.BackgroundTransparency = isSel and 0.05 or 0.3
 				if rec.Stroke then
-					TweenService:Create(rec.Stroke, TweenInfo.new(0.12), {
-						Transparency = isSel and 0.5 or 0.88
-					}):Play()
+					rec.Stroke.Transparency = isSel and 0.45 or 0.85
 				end
 			end
 		end
@@ -780,11 +773,7 @@ function CustomizeLibrary(Window)
 			CurrentFlashColor = stroke and stroke.Color or SubColor
 
 			local rootBg = RootFrame.BackgroundColor3
-			local blendedSearchBg = Color3.new(
-				math.clamp(rootBg.R * 0.85, 0, 1),
-				math.clamp(rootBg.G * 0.85, 0, 1),
-				math.clamp(rootBg.B * 0.85, 0, 1)
-			)
+			local blendedSearchBg = Color3.fromRGB(24, 28, 38)
 
 			SearchBar.BackgroundColor3 = blendedSearchBg
 			SpotlightFrame.BackgroundColor3 = rootBg
@@ -1020,8 +1009,10 @@ function CustomizeLibrary(Window)
 	local function OpenSpotlight()
 		SpotlightOverlay.Visible = true
 		SpotlightOverlay.BackgroundTransparency = 1
-		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.18), {BackgroundTransparency = 0.6}):Play()
+		SpotlightFrame.AnchorPoint = Vector2.new(0.5, 0)
+		SpotlightFrame.Position = UDim2.new(0.5, 0, 0, 52)
 		SpotlightFrame.Size = UDim2.new(0.72, 0, 0, 50)
+		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.18), {BackgroundTransparency = 0.6}):Play()
 		SpotInput.Text = ""
 		UpdateSearchResults()
 		SpotInput:CaptureFocus()
@@ -1069,8 +1060,7 @@ function CustomizeLibrary(Window)
 end
 
 local function HookWindow(Window)
-	if not Window or type(Window) ~= "table" or Window.__SearchHooked then return Window end
-	Window.__SearchHooked = true
+	if not Window or type(Window) ~= "table" then return Window end
 
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
@@ -1123,17 +1113,32 @@ local function HookWindow(Window)
 		return InternalAddTabSection(title)
 	end
 
-	Window.AddTabSection = GlobalAddTabSection
-	Window.CreateTabSection = GlobalAddTabSection
-	Window.TabSection = GlobalAddTabSection
-	Window.AddSection = GlobalAddTabSection
+	local function AttachTabSectionMethods(target)
+		if type(target) ~= "table" then return end
+		rawset(target, "AddTabSection", GlobalAddTabSection)
+		rawset(target, "CreateTabSection", GlobalAddTabSection)
+		rawset(target, "TabSection", GlobalAddTabSection)
+		rawset(target, "AddSection", GlobalAddTabSection)
 
-	local meta = getmetatable(Window)
-	if meta and type(meta.__index) == "table" then
-		meta.__index.AddTabSection = GlobalAddTabSection
-		meta.__index.CreateTabSection = GlobalAddTabSection
-		meta.__index.TabSection = GlobalAddTabSection
-		meta.__index.AddSection = GlobalAddTabSection
+		local mt = getmetatable(target)
+		if mt then
+			if type(mt.__index) == "table" then
+				rawset(mt.__index, "AddTabSection", GlobalAddTabSection)
+				rawset(mt.__index, "CreateTabSection", GlobalAddTabSection)
+				rawset(mt.__index, "TabSection", GlobalAddTabSection)
+				rawset(mt.__index, "AddSection", GlobalAddTabSection)
+			end
+			rawset(mt, "AddTabSection", GlobalAddTabSection)
+			rawset(mt, "AddSection", GlobalAddTabSection)
+			rawset(mt, "TabSection", GlobalAddTabSection)
+			rawset(mt, "CreateTabSection", GlobalAddTabSection)
+		end
+	end
+
+	AttachTabSectionMethods(Window)
+	AttachTabSectionMethods(Library)
+	if type(Library.Window) == "table" then
+		AttachTabSectionMethods(Library.Window)
 	end
 
 	Window.AddTab = function(self, tabOptions)
@@ -1153,8 +1158,8 @@ local function HookWindow(Window)
 
 		if tabButton and tabButton:IsA("GuiObject") then
 			tabButton.LayoutOrder = SidebarItemOrder
-			tabButton.BackgroundColor3 = Color3.fromRGB(25, 28, 36)
-			tabButton.BackgroundTransparency = 0.6
+			tabButton.BackgroundColor3 = Color3.fromRGB(28, 32, 42)
+			tabButton.BackgroundTransparency = 0.3
 
 			local btnCorner = tabButton:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", tabButton)
 			btnCorner.CornerRadius = UDim.new(0, 6)
@@ -1163,7 +1168,7 @@ local function HookWindow(Window)
 			btnStroke.Name = "TabStroke"
 			btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			btnStroke.Thickness = 1
-			btnStroke.Transparency = 0.88
+			btnStroke.Transparency = 0.85
 			btnStroke.Color = Color3.fromRGB(255, 255, 255)
 
 			local rec = { Button = tabButton, Stroke = btnStroke, Index = ThisTabIndex }
@@ -1171,15 +1176,23 @@ local function HookWindow(Window)
 
 			tabButton.MouseEnter:Connect(function()
 				if Window.SelectedTab ~= ThisTabIndex then
-					TweenService:Create(tabButton, TweenInfo.new(0.12), {BackgroundTransparency = 0.35}):Play()
-					TweenService:Create(btnStroke, TweenInfo.new(0.12), {Transparency = 0.7}):Play()
+					TweenService:Create(tabButton, TweenInfo.new(0.12), {BackgroundTransparency = 0.05}):Play()
+					TweenService:Create(btnStroke, TweenInfo.new(0.12), {Transparency = 0.6}):Play()
 				end
 			end)
 
 			tabButton.MouseLeave:Connect(function()
 				local isSel = (Window.SelectedTab == ThisTabIndex)
-				TweenService:Create(tabButton, TweenInfo.new(0.12), {BackgroundTransparency = isSel and 0.15 or 0.6}):Play()
-				TweenService:Create(btnStroke, TweenInfo.new(0.12), {Transparency = isSel and 0.5 or 0.88}):Play()
+				TweenService:Create(tabButton, TweenInfo.new(0.12), {BackgroundTransparency = isSel and 0.05 or 0.3}):Play()
+				TweenService:Create(btnStroke, TweenInfo.new(0.12), {Transparency = isSel and 0.45 or 0.85}):Play()
+			end)
+
+			tabButton:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+				local isSel = (Window.SelectedTab == ThisTabIndex)
+				local targetT = isSel and 0.05 or 0.3
+				if tabButton.BackgroundTransparency > targetT + 0.1 then
+					tabButton.BackgroundTransparency = targetT
+				end
 			end)
 		end
 
@@ -1252,15 +1265,26 @@ local function HookWindow(Window)
 	return Window
 end
 
-if type(Library.Window) == "table" then
-	Library.Window.AddTabSection = function(self, title)
-		if Library.CurrentWindow and Library.CurrentWindow.AddTabSection then
-			return Library.CurrentWindow:AddTabSection(title)
-		end
+local function GlobalFallbackAddSection(selfOrTitle, maybeTitle)
+	local title = maybeTitle
+	if title == nil and type(selfOrTitle) == "string" then
+		title = selfOrTitle
 	end
-	Library.Window.CreateTabSection = Library.Window.AddTabSection
-	Library.Window.TabSection = Library.Window.AddTabSection
-	Library.Window.AddSection = Library.Window.AddTabSection
+	if Library.CurrentWindow and Library.CurrentWindow.AddTabSection then
+		return Library.CurrentWindow:AddTabSection(title)
+	end
+end
+
+Library.AddTabSection = GlobalFallbackAddSection
+Library.CreateTabSection = GlobalFallbackAddSection
+Library.TabSection = GlobalFallbackAddSection
+Library.AddSection = GlobalFallbackAddSection
+
+if type(Library.Window) == "table" then
+	Library.Window.AddTabSection = GlobalFallbackAddSection
+	Library.Window.CreateTabSection = GlobalFallbackAddSection
+	Library.Window.TabSection = GlobalFallbackAddSection
+	Library.Window.AddSection = GlobalFallbackAddSection
 end
 
 Library.CreateWindow = function(self, options)
