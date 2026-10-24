@@ -16,36 +16,7 @@ local function SafeCall(name, func, ...)
 end
 
 local ScriptStartTime = os.clock()
-local Library
-
-SafeCall("LibraryLoad", function()
-	local sources = {
-		"https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau",
-		"https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Fluent.luau",
-		"https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau",
-		"https://raw.githubusercontent.com/dawid-scripts/Fluent/master/main.lua"
-	}
-	
-	for _, url in ipairs(sources) do
-		local fetchOk, content = pcall(function()
-			return game:HttpGet(url, true)
-		end)
-		if fetchOk and type(content) == "string" and #content > 0 then
-			local fn, compileErr = loadstring(content)
-			if fn then
-				local runOk, lib = pcall(fn)
-				if runOk and type(lib) == "table" then
-					Library = lib
-					break
-				end
-			end
-		end
-	end
-end)
-
-if not Library then
-	return warn("[UI Error]: Failed to load Fluent-Renewed library.")
-end
+local Library = loadstring(game:HttpGet("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
 local SearchIndex = {}
 local ObjectSet = setmetatable({}, {__mode = "k"})
