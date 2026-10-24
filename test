@@ -803,8 +803,8 @@ local function CustomizeLibrary(Window)
 
 	local SpotlightFrame = Create("Frame", {
 		Parent = SpotlightOverlay,
-		AnchorPoint = Vector2.new(0.5,0.5),
-		Position = UDim2.new(0.5,0,0.4,0),
+		AnchorPoint = Vector2.new(0.5,0),
+		Position = UDim2.new(0.5, math.floor((SidebarWidth + SIDEBAR_SIDE_PAD) / 2), 0, 64),
 		Size = UDim2.new(0.85,0,0,45),
 		BackgroundColor3 = Color3.fromRGB(25,25,25),
 		BorderSizePixel = 0,
@@ -812,6 +812,7 @@ local function CustomizeLibrary(Window)
 		ZIndex = 10001
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0,8), Parent = SpotlightFrame})
+	Create("UISizeConstraint", {MaxSize = Vector2.new(560, math.huge), Parent = SpotlightFrame})
 	local SpotlightStroke = Create("UIStroke", {Thickness = 1, Transparency = 0, Parent = SpotlightFrame})
 	local SpotlightGradient = Create("UIGradient", {Parent = SpotlightFrame})
 
@@ -1108,7 +1109,7 @@ local function CustomizeLibrary(Window)
 				for _, btn in pairs(TabHolder:GetChildren()) do
 					if btn:IsA("GuiButton") then
 						tabCounter += 1
-						if btn.LayoutOrder == page.LayoutOrder then
+						if (btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder then
 							local tl = btn:FindFirstChildOfClass("TextLabel")
 							if tl then tabName = tl.Text end
 							tabIndex = tabCounter
@@ -1345,8 +1346,21 @@ local function HookWindow(Window)
 
 	local OriginalAddTab = Window.AddTab
 	local CurrentTabIndex = 0
+	local SidebarOrder = {}
 
-	local PendingSectionLabels = {}
+	local function RelayoutSidebar()
+		local holder = Window.TabHolder
+		if not holder then return end
+		local layout = holder:FindFirstChildOfClass("UIListLayout")
+		if layout then layout.SortOrder = Enum.SortOrder.LayoutOrder end
+		local n = 0
+		for _, obj in ipairs(SidebarOrder) do
+			if obj and obj.Parent then
+				n += 1
+				obj.LayoutOrder = n
+			end
+		end
+	end
 
 	Window.AddTab = function(self, tabOptions)
 		CurrentTabIndex += 1
@@ -1360,19 +1374,15 @@ local function HookWindow(Window)
 
 		local Tab = OriginalAddTab(self, tabOptions)
 
-		if holder and #PendingSectionLabels > 0 then
-			local order = nil
+		if holder then
 			for _, c in ipairs(holder:GetChildren()) do
 				if not before[c] and c:IsA("GuiButton") then
-					order = c.LayoutOrder
+					c:SetAttribute("OriginalOrder", c.LayoutOrder)
+					table.insert(SidebarOrder, c)
 					break
 				end
 			end
-			order = order or ThisTabIndex
-			for _, lbl in ipairs(PendingSectionLabels) do
-				if lbl and lbl.Parent then lbl.LayoutOrder = order end
-			end
-			table.clear(PendingSectionLabels)
+			RelayoutSidebar()
 		end
 
 		local TabName = tabOptions.Title or "Unknown"
@@ -1403,13 +1413,13 @@ local function HookWindow(Window)
 			sectionLabel.TextSize = 11
 			sectionLabel.TextXAlignment = Enum.TextXAlignment.Left
 			sectionLabel.TextYAlignment = Enum.TextYAlignment.Center
-			sectionLabel.LayoutOrder = 999999
 			sectionLabel.Parent = self.TabHolder
 
 			local pad = Instance.new("UIPadding", sectionLabel)
 			pad.PaddingLeft = UDim.new(0, 10)
 
-			table.insert(PendingSectionLabels, sectionLabel)
+			table.insert(SidebarOrder, sectionLabel)
+			RelayoutSidebar()
 
 			return {
 				AddTab = function(_, tabOptions)
@@ -1515,10 +1525,12 @@ toggleBtn.Parent = toggleGui
 toggleBtn.Active = true
 
 local dragging, dragInput, mousePos, framePos
+local dragMoved = false
 
 toggleBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
+        dragMoved = false
         mousePos = input.Position
         framePos = toggleBtn.Position
         input.Changed:Connect(function()
@@ -1534,6 +1546,7 @@ end)
 game:GetService("UserInputService").InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - mousePos
+        if delta.Magnitude > 6 then dragMoved = true end
         toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
     end
 end)
@@ -1547,6 +1560,10 @@ toggleBtn.MouseButton1Up:Connect(function()
 end)
 
 toggleBtn.Activated:Connect(function()
+    if dragMoved then
+        dragMoved = false
+        return
+    end
     if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
 end)
 
