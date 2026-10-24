@@ -17,8 +17,31 @@ end
 
 local ScriptStartTime = os.clock()
 local Library
+
+-- Safe multi-source loader for Fluent-Renewed
 SafeCall("LibraryLoad", function()
-	Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+	local sources = {
+		"https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau",
+		"https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Fluent.luau",
+		"https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/main/Fluent.luau",
+		"https://raw.githubusercontent.com/dawid-scripts/Fluent/master/main.lua"
+	}
+	
+	for _, url in ipairs(sources) do
+		local fetchOk, content = pcall(function()
+			return game:HttpGet(url, true)
+		end)
+		if fetchOk and type(content) == "string" and #content > 0 then
+			local fn, compileErr = loadstring(content)
+			if fn then
+				local runOk, lib = pcall(fn)
+				if runOk and type(lib) == "table" then
+					Library = lib
+					break
+				end
+			end
+		end
+	end
 end)
 
 if not Library then
@@ -1152,7 +1175,7 @@ local function CustomizeLibrary(Window)
 		local function PickFlashTarget(node)
 			if not node or typeof(node) ~= "Instance" then return nil end
 			local curr = node
-			while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") then
+			while curr and curr.Parent and not curr.Parent:IsA("ScrollingFrame") do
 				curr = curr.Parent
 			end
 			return curr or node
