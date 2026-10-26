@@ -44,7 +44,6 @@ local PROFILE_HEIGHT = 44
 local PROFILE_BOTTOM_MARGIN = 8
 local TABS_PROFILE_GAP = 6
 local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
-local MAX_SEARCH_RESULTS = 40
 local SPOTLIGHT_TOP_OFFSET = 52
 
 local function Track(conn)
@@ -90,10 +89,12 @@ local function GetScrollFrame(obj)
 	return nil
 end
 
-local function RecordElement(ctx, typeName, displayTitle, elementObj)
+local function RecordElement(ctx, typeName, displayTitle, elementObj, explicitFrame)
 	if not displayTitle or displayTitle == "" then return end
 	if elementObj and ObjectSet[elementObj] then return end
 	if elementObj then ObjectSet[elementObj] = true end
+
+	local frame = explicitFrame or GetFrameFromElement(elementObj)
 
 	table.insert(SearchIndex, {
 		Name = displayTitle,
@@ -101,7 +102,7 @@ local function RecordElement(ctx, typeName, displayTitle, elementObj)
 		Tab = ctx.TabName or "Unknown",
 		Section = (ctx.GetSection and ctx.GetSection()) or (ctx.TabName or "Unknown"),
 		TabIndex = ctx.TabIndex or 1,
-		Frame = GetFrameFromElement(elementObj)
+		Frame = frame
 	})
 end
 
@@ -109,124 +110,45 @@ local function HookContainer(container, ctx)
 	if not container or container.__Aliased then return container end
 	container.__Aliased = true
 
-	if container.AddToggle and not container.__HookAddToggle then
-		container.__HookAddToggle = true
-		local Old = container.AddToggle
-		container.AddToggle = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Toggle", title, el)
-				return el
+	local function hookMethod(name, typeName)
+		if container[name] and not container["__Hook" .. name] then
+			container["__Hook" .. name] = true
+			local Old = container[name]
+			container[name] = function(self, ...)
+				local args = {...}
+				local scroll = GetScrollFrame(self) or GetScrollFrame(container)
+				local countBefore = scroll and #scroll:GetChildren() or 0
+
+				local success, el = pcall(function()
+					return Old(self, unpack(args))
+				end)
+				if success then
+					local title = GetTitle(args[1], args[2])
+					local frame = nil
+					if scroll then
+						local after = scroll:GetChildren()
+						for i = countBefore + 1, #after do
+							if after[i]:IsA("GuiObject") then
+								frame = after[i]
+								break
+							end
+						end
+					end
+					RecordElement(ctx, typeName, title, el, frame)
+					return el
+				end
+				return nil
 			end
-			return nil
 		end
 	end
 
-	if container.AddDropdown and not container.__HookAddDropdown then
-		container.__HookAddDropdown = true
-		local Old = container.AddDropdown
-		container.AddDropdown = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Dropdown", title, el)
-				return el
-			end
-			return nil
-		end
-	end
-
-	if container.AddButton and not container.__HookAddButton then
-		container.__HookAddButton = true
-		local Old = container.AddButton
-		container.AddButton = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Button", title, el)
-				return el
-			end
-			return nil
-		end
-	end
-
-	if container.AddParagraph and not container.__HookAddParagraph then
-		container.__HookAddParagraph = true
-		local Old = container.AddParagraph
-		container.AddParagraph = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Paragraph", title, el)
-				return el
-			end
-			return nil
-		end
-	end
-
-	if container.AddSlider and not container.__HookAddSlider then
-		container.__HookAddSlider = true
-		local Old = container.AddSlider
-		container.AddSlider = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Slider", title, el)
-				return el
-			end
-			return nil
-		end
-	end
-
-	if container.AddInput and not container.__HookAddInput then
-		container.__HookAddInput = true
-		local Old = container.AddInput
-		container.AddInput = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Input", title, el)
-				return el
-			end
-			return nil
-		end
-	end
-
-	if container.AddKeybind and not container.__HookAddKeybind then
-		container.__HookAddKeybind = true
-		local Old = container.AddKeybind
-		container.AddKeybind = function(self, ...)
-			local args = {...}
-			local success, el = pcall(function()
-				return Old(self, unpack(args))
-			end)
-			if success then
-				local title = GetTitle(args[1], args[2])
-				RecordElement(ctx, "Keybind", title, el)
-				return el
-			end
-			return nil
-		end
-	end
+	hookMethod("AddToggle", "Toggle")
+	hookMethod("AddDropdown", "Dropdown")
+	hookMethod("AddButton", "Button")
+	hookMethod("AddParagraph", "Paragraph")
+	hookMethod("AddSlider", "Slider")
+	hookMethod("AddInput", "Input")
+	hookMethod("AddKeybind", "Keybind")
 
 	if container.AddSection and not container.__SectionHooked then
 		container.__SectionHooked = true
@@ -245,20 +167,27 @@ local function HookContainer(container, ctx)
 			end
 
 			local isExpanded = defaultExpanded
-			local scrollFrame = GetScrollFrame(self)
+			local scrollFrame = GetScrollFrame(self) or GetScrollFrame(container)
+			local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
 
 			local success, sec = pcall(function()
 				return OldAddSection(self, tostring(title or "Section"))
 			end)
 			if not success then return nil end
 
-			RecordElement(ctx, "Section", title, sec)
-
 			local secFrame = nil
 			if scrollFrame then
 				local children = scrollFrame:GetChildren()
-				secFrame = children[#children]
+				for i = countBefore + 1, #children do
+					if children[i]:IsA("GuiObject") then
+						secFrame = children[i]
+						break
+					end
+				end
+				if not secFrame then secFrame = children[#children] end
 			end
+
+			RecordElement(ctx, "Section", title, sec, secFrame)
 
 			local childFrames = {}
 			local titleLabel = secFrame and (secFrame:FindFirstChild("Title") or secFrame:FindFirstChildOfClass("TextLabel"))
@@ -339,7 +268,7 @@ local function HookContainer(container, ctx)
 			for _, m in ipairs(methods) do
 				sub[m] = function(_, ...)
 					local innerArgs = {...}
-					local countBefore = scrollFrame and #scrollFrame:GetChildren() or 0
+					local countB = scrollFrame and #scrollFrame:GetChildren() or 0
 					local success, el = pcall(function()
 						return self[m](self, unpack(innerArgs))
 					end)
@@ -347,7 +276,7 @@ local function HookContainer(container, ctx)
 
 					if scrollFrame then
 						local newChildren = scrollFrame:GetChildren()
-						for i = countBefore + 1, #newChildren do
+						for i = countB + 1, #newChildren do
 							local itemFrame = newChildren[i]
 							if itemFrame:IsA("GuiObject") and itemFrame ~= secFrame then
 								itemFrame.Visible = isExpanded
@@ -386,34 +315,13 @@ local function HookContainer(container, ctx)
 		container.Collapsible = function(self, ...) return self:AddSection(...) end
 	end
 
-	if container.AddToggle then 
-		container.Toggle = container.AddToggle 
-		container.CreateToggle = container.AddToggle
-	end
-	if container.AddDropdown then 
-		container.Dropdown = container.AddDropdown 
-		container.CreateDropdown = container.AddDropdown
-	end
-	if container.AddButton then 
-		container.Button = container.AddButton 
-		container.CreateButton = container.AddButton
-	end
-	if container.AddParagraph then 
-		container.Paragraph = container.AddParagraph 
-		container.CreateParagraph = container.AddParagraph
-	end
-	if container.AddSlider then 
-		container.Slider = container.AddSlider 
-		container.CreateSlider = container.AddSlider
-	end
-	if container.AddInput then 
-		container.Input = container.AddInput 
-		container.CreateInput = container.AddInput
-	end
-	if container.AddKeybind then 
-		container.Keybind = container.AddKeybind 
-		container.CreateKeybind = container.AddKeybind
-	end
+	if container.AddToggle then container.Toggle = container.AddToggle container.CreateToggle = container.AddToggle end
+	if container.AddDropdown then container.Dropdown = container.AddDropdown container.CreateDropdown = container.AddDropdown end
+	if container.AddButton then container.Button = container.AddButton container.CreateButton = container.AddButton end
+	if container.AddParagraph then container.Paragraph = container.AddParagraph container.CreateParagraph = container.AddParagraph end
+	if container.AddSlider then container.Slider = container.AddSlider container.CreateSlider = container.AddSlider end
+	if container.AddInput then container.Input = container.AddInput container.CreateInput = container.AddInput end
+	if container.AddKeybind then container.Keybind = container.AddKeybind container.CreateKeybind = container.AddKeybind end
 
 	return container
 end
@@ -1150,20 +1058,32 @@ local function CustomizeLibrary(Window)
 		CloseDashboard()
 	end)
 
-	local function FindVisualTargetByText(root, itemName)
+	local function FindVisualTargetByText(root, itemName, itemType)
 		if not root then return end
+		local fallback = nil
+
 		for _, desc in ipairs(root:GetDescendants()) do
 			if desc:IsA("TextLabel") and desc.Text == itemName then
 				local p = desc
 				while p and p ~= root do
 					if p.Parent and p.Parent:IsA("ScrollingFrame") then
-						return desc
+						if not fallback then fallback = p end
+						if itemType == "Toggle" then
+							if p:FindFirstChild("Toggle") or p:FindFirstChild("Check") or p:FindFirstChildWhichIsA("TextButton", true) then
+								return p
+							end
+						elseif itemType == "Section" then
+							if p.Name == "Section" or p:FindFirstChild("CollapseArrow") then
+								return p
+							end
+						end
+						break
 					end
 					p = p.Parent
 				end
-				return desc
 			end
 		end
+		return fallback
 	end
 
 	local function PickFlashTarget(node)
@@ -1241,10 +1161,10 @@ local function CustomizeLibrary(Window)
 		end)
 	end
 
-	local function ScrollToElement(itemName, frameObj)
+	local function ScrollToElement(itemName, frameObj, itemType)
 		local target = frameObj
-		if not target then
-			target = FindVisualTargetByText(RootFrame, itemName)
+		if not target or not target.Parent then
+			target = FindVisualTargetByText(RootFrame, itemName, itemType)
 		end
 		ScrollToTargetCentered(target)
 	end
@@ -1259,10 +1179,6 @@ local function CustomizeLibrary(Window)
 		for _, item in ipairs(SearchIndex) do
 			if query == "" or tostring(item.Name):lower():find(query, 1, true) then
 				hits += 1
-				if hits > MAX_SEARCH_RESULTS then
-					hits = MAX_SEARCH_RESULTS
-					break
-				end
 
 				local iconData = Icons[item.Type] or Icons.Misc
 
@@ -1395,7 +1311,7 @@ local function CustomizeLibrary(Window)
 					pcall(function() Window:SelectTab(item.TabIndex) end)
 
 					RunService.RenderStepped:Wait()
-					ScrollToElement(item.Name, item.Frame)
+					ScrollToElement(item.Name, item.Frame, item.Type)
 				end)
 			end
 		end
