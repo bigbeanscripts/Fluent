@@ -44,7 +44,7 @@ local PROFILE_HEIGHT = 44
 local PROFILE_BOTTOM_MARGIN = 8
 local TABS_PROFILE_GAP = 6
 local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
-local MAX_SEARCH_RESULTS = 80
+local MAX_SEARCH_RESULTS = 40
 local SPOTLIGHT_TOP_OFFSET = 52
 
 local function Track(conn)
@@ -101,7 +101,6 @@ local function RecordElement(ctx, typeName, displayTitle, elementObj)
 		Tab = ctx.TabName or "Unknown",
 		Section = (ctx.GetSection and ctx.GetSection()) or (ctx.TabName or "Unknown"),
 		TabIndex = ctx.TabIndex or 1,
-		Object = elementObj,
 		Frame = GetFrameFromElement(elementObj)
 	})
 end
@@ -873,6 +872,22 @@ local function CustomizeLibrary(Window)
 	Create("UIListLayout", {Parent = SpotResults, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2)})
 	Create("UIPadding", {Parent = SpotResults, PaddingLeft = UDim.new(0,5), PaddingRight = UDim.new(0,5), PaddingTop = UDim.new(0,5), PaddingBottom = UDim.new(0,5)})
 
+	local function CloseSpotlight()
+		local isMax = Window.Maximized or false
+		local widthScale = isMax and 0.88 or 0.85
+		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(widthScale, 0, 0, 45)}):Play()
+		task.wait(0.15)
+		SpotlightOverlay.Visible = false
+		SpotInput.Text = ""
+
+		for _, v in ipairs(SpotResults:GetChildren()) do
+			if v:IsA("TextButton") then
+				v:Destroy()
+			end
+		end
+	end
+
 	local SettingsLabelRef, SettingsButtonRef, GradientRef = nil, nil, nil
 	local CurrentFlashColor = Color3.fromRGB(255, 255, 255)
 
@@ -1234,80 +1249,6 @@ local function CustomizeLibrary(Window)
 		ScrollToTargetCentered(target)
 	end
 
-	local function DeepIndexElements()
-		local ContainerHolder = nil
-		for _, v in pairs(RootFrame:GetDescendants()) do
-			if v.Name == "ContainerHolder" then ContainerHolder = v break end
-		end
-
-		if not ContainerHolder then return end
-
-		for _, page in pairs(ContainerHolder:GetChildren()) do
-			if page:IsA("ScrollingFrame") then
-				local tabName = "Unknown"
-				local tabIndex = 1
-				local tabCounter = 0
-				for _, btn in pairs(TabHolder:GetChildren()) do
-					if btn:IsA("GuiButton") then
-						tabCounter += 1
-						if (btn:GetAttribute("OriginalOrder") or btn.LayoutOrder) == page.LayoutOrder then
-							local tl = btn:FindFirstChildOfClass("TextLabel")
-							if tl then tabName = tl.Text end
-							tabIndex = tabCounter
-							break
-						end
-					end
-				end
-
-				local currentSection = tabName
-
-				for _, element in pairs(page:GetChildren()) do
-					if element:IsA("Frame") and element.Visible then
-						if not ObjectSet[element] then
-							local elType = "Misc"
-							local title = "Unknown"
-
-							local possibleTitle = element:FindFirstChild("Title") or element:FindFirstChildOfClass("TextLabel")
-							if possibleTitle and possibleTitle:IsA("TextLabel") then
-								title = possibleTitle.Text
-							end
-
-							if title ~= "Unknown" and title ~= "" then
-								if element:FindFirstChild("Title") and element.Title.TextXAlignment == Enum.TextXAlignment.Center then
-									elType = "Section"
-									currentSection = title
-								elseif element:FindFirstChild("Box") then elType = "Input"
-								elseif element:FindFirstChild("Slider") then elType = "Slider"
-								elseif element:FindFirstChild("Dropdown") then elType = "Dropdown"
-								elseif element:FindFirstChild("Check") or element:FindFirstChild("Toggle") then elType = "Toggle"
-								elseif element:FindFirstChild("Container") then elType = "Button"
-								elseif element.Name == "Section" then elType = "Section"; currentSection = title
-								elseif element.Name == "Paragraph" then elType = "Paragraph"
-								end
-
-								ObjectSet[element] = true
-								table.insert(SearchIndex, {
-									Name = title,
-									Type = elType,
-									Tab = tabName,
-									Section = currentSection,
-									TabIndex = tabIndex,
-									Object = nil,
-									Frame = element
-								})
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-
-	task.spawn(function()
-		task.wait(2)
-		DeepIndexElements()
-	end)
-
 	local function UpdateSearchResults()
 		local query = SpotInput.Text:lower()
 		for _, v in pairs(SpotResults:GetChildren()) do
@@ -1445,13 +1386,7 @@ local function CustomizeLibrary(Window)
 						if Window.ExpandTabSection then Window:ExpandTabSection(item.TabIndex) end
 					end)
 
-					local isMax = Window.Maximized or false
-					local widthScale = isMax and 0.88 or 0.85
-					TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
-					TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(widthScale, 0, 0, 45)}):Play()
-					task.wait(0.15)
-					SpotlightOverlay.Visible = false
-					SpotInput.Text = ""
+					CloseSpotlight()
 
 					task.wait(0.1)
 					RunService.RenderStepped:Wait()
@@ -1518,14 +1453,7 @@ local function CustomizeLibrary(Window)
 		Text = "",
 		ZIndex = 199
 	})
-	CloseBtn.MouseButton1Click:Connect(function()
-		local isMax = Window.Maximized or false
-		local widthScale = isMax and 0.88 or 0.85
-		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
-		TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(widthScale, 0, 0, 45)}):Play()
-		task.wait(0.15)
-		SpotlightOverlay.Visible = false
-	end)
+	CloseBtn.MouseButton1Click:Connect(CloseSpotlight)
 end
 
 local function HookWindow(Window)
