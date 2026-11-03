@@ -39,37 +39,43 @@ end
 
 local function SpawnTask(fn, ...)
 	if isDestroyed then return nil end
-	local th
-	th = task.spawn(function(...)
-		ActiveThreads[th] = true
-		local success, err = pcall(fn, ...)
-		ActiveThreads[th] = nil
+	local th = task.spawn(function(...)
+		local cur = coroutine.running()
+		ActiveThreads[cur] = true
+		pcall(fn, ...)
+		ActiveThreads[cur] = nil
 	end, ...)
-	ActiveThreads[th] = true
+	if th then
+		ActiveThreads[th] = true
+	end
 	return th
 end
 
 local function DelayTask(duration, fn, ...)
 	if isDestroyed then return nil end
-	local th
-	th = task.delay(duration, function(...)
-		ActiveThreads[th] = true
-		local success, err = pcall(fn, ...)
-		ActiveThreads[th] = nil
+	local th = task.delay(duration, function(...)
+		local cur = coroutine.running()
+		ActiveThreads[cur] = true
+		pcall(fn, ...)
+		ActiveThreads[cur] = nil
 	end, ...)
-	ActiveThreads[th] = true
+	if th then
+		ActiveThreads[th] = true
+	end
 	return th
 end
 
 local function DeferTask(fn, ...)
 	if isDestroyed then return nil end
-	local th
-	th = task.defer(function(...)
-		ActiveThreads[th] = true
-		local success, err = pcall(fn, ...)
-		ActiveThreads[th] = nil
+	local th = task.defer(function(...)
+		local cur = coroutine.running()
+		ActiveThreads[cur] = true
+		pcall(fn, ...)
+		ActiveThreads[cur] = nil
 	end, ...)
-	ActiveThreads[th] = true
+	if th then
+		ActiveThreads[th] = true
+	end
 	return th
 end
 
