@@ -1,3 +1,8 @@
+--[[
+    Fluent-Renewed Extension & Customization
+    Author / Modification: bigbeanscripta
+]]
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -7,52 +12,6 @@ local Stats = game:GetService("Stats")
 local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 
-local LoadingGui = Instance.new("ScreenGui")
-LoadingGui.Name = "GlobalScriptLoadingGui"
-LoadingGui.ResetOnSpawn = false
-LoadingGui.DisplayOrder = 999999
-LoadingGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
-
-local LoadingCard = Instance.new("Frame")
-LoadingCard.Name = "LoadingCard"
-LoadingCard.Parent = LoadingGui
-LoadingCard.AnchorPoint = Vector2.new(0.5, 0)
-LoadingCard.Position = UDim2.new(0.5, 0, 0, 15)
-LoadingCard.Size = UDim2.fromOffset(210, 42)
-LoadingCard.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
-LoadingCard.BorderSizePixel = 0
-
-local CardCorner = Instance.new("UICorner", LoadingCard)
-CardCorner.CornerRadius = UDim.new(0, 8)
-
-local CardStroke = Instance.new("UIStroke")
-CardStroke.Thickness = 1
-CardStroke.Transparency = 0.7
-CardStroke.Color = Color3.fromRGB(255, 255, 255)
-CardStroke.Parent = LoadingCard
-
-local LoadingText = Instance.new("TextLabel")
-LoadingText.Name = "LoadingText"
-LoadingText.Parent = LoadingCard
-LoadingText.BackgroundTransparency = 1
-LoadingText.Size = UDim2.fromScale(1, 1)
-LoadingText.Font = Enum.Font.GothamBold
-LoadingText.TextColor3 = Color3.fromRGB(240, 240, 240)
-LoadingText.TextSize = 13
-LoadingText.Text = "Loading Interface"
-LoadingText.ZIndex = 2
-
-local loadingActive = true
-task.spawn(function()
-	local dots = {"", ".", "..", "..."}
-	local i = 1
-	while loadingActive and LoadingText and LoadingText.Parent do
-		LoadingText.Text = "Loading Interface" .. dots[i]
-		i = (i % #dots) + 1
-		task.wait(0.4)
-	end
-end)
-
 local function SafeCall(name, func, ...)
 	local success, err = pcall(func, ...)
 	return success, err
@@ -61,11 +20,70 @@ end
 local ScriptStartTime = os.clock()
 local Library = loadstring(game:HttpGet("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
 
+-- Scoped Instance State & Lifecycles
+local isDestroyed = false
+local ActiveThreads = {}
+local GlobalConnections = {}
+local DestroyCallbacks = {}
+
+local function Track(conn)
+	table.insert(GlobalConnections, conn)
+	return conn
+end
+
+local function DisconnectTracked()
+	for _, conn in ipairs(GlobalConnections) do
+		pcall(function() conn:Disconnect() end)
+	end
+	table.clear(GlobalConnections)
+end
+
+local function SpawnTask(fn, ...)
+	if isDestroyed then return nil end
+	local th
+	th = task.spawn(function(...)
+		ActiveThreads[th] = true
+		local success, err = pcall(fn, ...)
+		ActiveThreads[th] = nil
+	end, ...)
+	ActiveThreads[th] = true
+	return th
+end
+
+local function DelayTask(duration, fn, ...)
+	if isDestroyed then return nil end
+	local th
+	th = task.delay(duration, function(...)
+		ActiveThreads[th] = true
+		local success, err = pcall(fn, ...)
+		ActiveThreads[th] = nil
+	end, ...)
+	ActiveThreads[th] = true
+	return th
+end
+
+local function DeferTask(fn, ...)
+	if isDestroyed then return nil end
+	local th
+	th = task.defer(function(...)
+		ActiveThreads[th] = true
+		local success, err = pcall(fn, ...)
+		ActiveThreads[th] = nil
+	end, ...)
+	ActiveThreads[th] = true
+	return th
+end
+
+local function CancelAllThreads()
+	for th in pairs(ActiveThreads) do
+		pcall(task.cancel, th)
+	end
+	table.clear(ActiveThreads)
+end
+
 local SearchIndex = {}
 local ObjectSet = setmetatable({}, {__mode = "k"})
 local SectionExpanders = setmetatable({}, {__mode = "k"})
-local GlobalConnections = {}
-local DestroyCallbacks = {}
 local SectionExpandersByTitle = {}
 local AllSectionTitles = {}
 local AllCreatedTabSections = {}
@@ -87,17 +105,7 @@ local TABS_PROFILE_GAP = 3
 local TABS_BOTTOM_RESERVED = PROFILE_HEIGHT + PROFILE_BOTTOM_MARGIN + TABS_PROFILE_GAP
 local SPOTLIGHT_TOP_OFFSET = 52
 
-local function Track(conn)
-	table.insert(GlobalConnections, conn)
-	return conn
-end
-
-local function DisconnectTracked()
-	for _, conn in ipairs(GlobalConnections) do
-		pcall(function() conn:Disconnect() end)
-	end
-	table.clear(GlobalConnections)
-end
+local Cleanup
 
 local function GetTitle(arg1, arg2)
 	if type(arg2) == "table" and arg2.Title then return tostring(arg2.Title) end
@@ -285,21 +293,21 @@ local function HookContainer(container, ctx)
 				triggerBtn.ZIndex = 25
 				triggerBtn.Parent = titleLabel
 
-				triggerBtn.MouseEnter:Connect(function()
+				Track(triggerBtn.MouseEnter:Connect(function()
 					local isDark = ((TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3) > 0.5
 					local hoverColor = isDark and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
 					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = hoverColor}):Play()
 					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = hoverColor}):Play()
-				end)
+				end))
 
-				triggerBtn.MouseLeave:Connect(function()
+				Track(triggerBtn.MouseLeave:Connect(function()
 					TweenService:Create(titleLabel, TweenInfo.new(0.15), {TextColor3 = TargetTextColor}):Play()
 					TweenService:Create(arrowIcon, TweenInfo.new(0.15), {ImageColor3 = TargetTextColor}):Play()
-				end)
+				end))
 
-				triggerBtn.MouseButton1Click:Connect(function()
+				Track(triggerBtn.MouseButton1Click:Connect(function()
 					SetExpanded(not isExpanded)
-				end)
+				end))
 			end
 
 			local sub = {}
@@ -386,7 +394,7 @@ local Icons = {
 }
 
 local function CustomizeLibrary(Window)
-	if not Window or not Window.Root then return end
+	if isDestroyed or not Window or not Window.Root then return end
 
 	local RootFrame = Window.Root
 	local TabHolder = Window.TabHolder
@@ -427,21 +435,21 @@ local function CustomizeLibrary(Window)
 	end
 	local canvasQueued = false
 	local function QueueFixCanvas()
-		if canvasQueued then return end
+		if canvasQueued or isDestroyed then return end
 		canvasQueued = true
-		task.defer(function()
+		DeferTask(function()
 			canvasQueued = false
 			FixTabCanvas()
 		end)
 	end
 	if TabLayout then
-		TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(QueueFixCanvas)
-		TabHolder:GetPropertyChangedSignal("CanvasSize"):Connect(function()
+		Track(TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(QueueFixCanvas))
+		Track(TabHolder:GetPropertyChangedSignal("CanvasSize"):Connect(function()
 			local want = TabLayout.AbsoluteContentSize.Y
 			if math.abs(TabHolder.CanvasSize.Y.Offset - want) > 0.5 or TabHolder.CanvasSize.Y.Scale ~= 0 then
 				QueueFixCanvas()
 			end
-		end)
+		end))
 		FixTabCanvas()
 	end
 
@@ -549,14 +557,14 @@ local function CustomizeLibrary(Window)
 		ZIndex = 31
 	})
 
-	ProfileButton.MouseEnter:Connect(function()
+	Track(ProfileButton.MouseEnter:Connect(function()
 		TweenService:Create(ProfileButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.94}):Play()
 		TweenService:Create(ProfileStroke, TweenInfo.new(0.15), {Transparency = 0.85}):Play()
-	end)
-	ProfileButton.MouseLeave:Connect(function()
+	end))
+	Track(ProfileButton.MouseLeave:Connect(function()
 		TweenService:Create(ProfileButton, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
 		TweenService:Create(ProfileStroke, TweenInfo.new(0.15), {Transparency = 1}):Play()
-	end)
+	end))
 
 	local DashboardOverlay = Create("TextButton", {
 		Name = "DashboardOverlay",
@@ -596,7 +604,7 @@ local function CustomizeLibrary(Window)
 		AutoButtonColor = false,
 		ZIndex = 15001
 	})
-	CardBlocker.MouseButton1Click:Connect(function() end)
+	Track(CardBlocker.MouseButton1Click:Connect(function() end))
 
 	local DashTopBar = Create("Frame", {
 		Parent = DashboardCard,
@@ -633,12 +641,12 @@ local function CustomizeLibrary(Window)
 	})
 	Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = DashClose})
 
-	DashClose.MouseEnter:Connect(function()
+	Track(DashClose.MouseEnter:Connect(function()
 		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 0.88}):Play()
-	end)
-	DashClose.MouseLeave:Connect(function()
+	end))
+	Track(DashClose.MouseLeave:Connect(function()
 		TweenService:Create(DashClose, TweenInfo.new(0.12), {BackgroundTransparency = 1}):Play()
-	end)
+	end))
 
 	local StatCardFrames = {}
 	local StatCardTitles = {}
@@ -697,7 +705,7 @@ local function CustomizeLibrary(Window)
 		ZIndex = 15002
 	})
 
-	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "00h 00m 00s", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0, 0, 0, 0))
+	local UptimeVal = CreateStatCard("SCRIPT UPTIME", "00h 00m 00s", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0.5, 6, 0, 0))
 	local ExecutorVal = CreateStatCard("EXECUTOR", (identifyexecutor and identifyexecutor()) or "Unknown", ContentFrame, UDim2.new(0.5, -6, 0, 56), UDim2.new(0.5, 6, 0, 0))
 
 	local FpsVal = CreateStatCard("CLIENT FPS", "-- FPS", ContentFrame, UDim2.new(0.33, -4, 0, 52), UDim2.new(0, 0, 0, 64))
@@ -711,6 +719,7 @@ local function CustomizeLibrary(Window)
 	local fpsConn = nil
 
 	local function UpdateDashboardTelemetry()
+		if isDestroyed then return end
 		local totalSeconds = math.floor(os.clock() - ScriptStartTime)
 		local hours = math.floor(totalSeconds / 3600)
 		local mins = math.floor((totalSeconds % 3600) / 60)
@@ -745,14 +754,16 @@ local function CustomizeLibrary(Window)
 
 	local function StopAllTelemetry()
 		if fpsConn then
-			fpsConn:Disconnect()
+			pcall(function() fpsConn:Disconnect() end)
 			fpsConn = nil
 		end
 		if dashboardLoopThread then
-			task.cancel(dashboardLoopThread)
+			pcall(task.cancel, dashboardLoopThread)
+			ActiveThreads[dashboardLoopThread] = nil
 			dashboardLoopThread = nil
 		end
 	end
+	table.insert(DestroyCallbacks, StopAllTelemetry)
 
 	local SpotlightOverlay = Create("Frame", {
 		Name = "SpotlightOverlay",
@@ -822,11 +833,13 @@ local function CustomizeLibrary(Window)
 	Create("UIPadding", {Parent = SpotResults, PaddingLeft = UDim.new(0,5), PaddingRight = UDim.new(0,5), PaddingTop = UDim.new(0,5), PaddingBottom = UDim.new(0,5)})
 
 	local function CloseSpotlight()
+		if isDestroyed then return end
 		local isMax = Window.Maximized or false
 		local widthScale = isMax and 0.88 or 0.85
 		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
 		TweenService:Create(SpotlightFrame, TweenInfo.new(0.15), {Size = UDim2.new(widthScale, 0, 0, 45)}):Play()
 		task.wait(0.15)
+		if isDestroyed then return end
 		SpotlightOverlay.Visible = false
 		SpotInput.Text = ""
 
@@ -841,6 +854,7 @@ local function CustomizeLibrary(Window)
 	local CurrentFlashColor = Color3.fromRGB(255, 255, 255)
 
 	local function UpdateColors()
+		if isDestroyed then return end
 		pcall(function()
 			if not RootFrame or not RootFrame.Parent then return end
 
@@ -990,8 +1004,9 @@ local function CustomizeLibrary(Window)
 		local OriginalSetTheme = Library.SetTheme
 		Library.SetTheme = function(self, themeName, ...)
 			local res = OriginalSetTheme(self, themeName, ...)
-			task.spawn(function()
+			SpawnTask(function()
 				for _ = 1, 10 do
+					if isDestroyed then return end
 					UpdateColors()
 					task.wait(0.03)
 				end
@@ -1001,16 +1016,16 @@ local function CustomizeLibrary(Window)
 		end
 	end
 
-	task.delay(0.2, UpdateColors)
-	task.delay(0.5, UpdateColors)
+	DelayTask(0.2, UpdateColors)
+	DelayTask(0.5, UpdateColors)
 
 	local colorDebounce = false
 	Track(UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			if not colorDebounce then
 				colorDebounce = true
-				task.defer(UpdateColors)
-				task.delay(0.15, function()
+				DeferTask(UpdateColors)
+				DelayTask(0.15, function()
 					UpdateColors()
 					colorDebounce = false
 				end)
@@ -1019,17 +1034,18 @@ local function CustomizeLibrary(Window)
 	end))
 
 	Track(RootFrame:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
-		task.defer(UpdateColors)
+		DeferTask(UpdateColors)
 	end))
 
 	local rootStroke = RootFrame:FindFirstChildOfClass("UIStroke")
 	if rootStroke then
 		Track(rootStroke:GetPropertyChangedSignal("Color"):Connect(function()
-			task.defer(UpdateColors)
+			DeferTask(UpdateColors)
 		end))
 	end
 
 	local function OpenDashboard()
+		if isDestroyed then return end
 		UpdateColors()
 		DashboardOverlay.Visible = true
 		TweenService:Create(DashboardOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.55}):Play()
@@ -1038,9 +1054,9 @@ local function CustomizeLibrary(Window)
 
 		StopAllTelemetry()
 
-		dashboardLoopThread = task.spawn(function()
+		dashboardLoopThread = SpawnTask(function()
 			task.wait(1)
-			if not DashboardOverlay.Visible then return end
+			if isDestroyed or not DashboardOverlay.Visible then return end
 
 			local frameCount = 0
 			local lastFpsTick = os.clock()
@@ -1058,8 +1074,9 @@ local function CustomizeLibrary(Window)
 
 			UpdateDashboardTelemetry()
 
-			while DashboardOverlay.Visible do
+			while DashboardOverlay.Visible and not isDestroyed do
 				task.wait(1)
+				if isDestroyed then break end
 				if DashboardOverlay.Visible then
 					UpdateDashboardTelemetry()
 				end
@@ -1069,24 +1086,26 @@ local function CustomizeLibrary(Window)
 
 	local function CloseDashboard()
 		StopAllTelemetry()
+		if isDestroyed then return end
 		TweenService:Create(DashboardOverlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
 		TweenService:Create(DashboardCard, TweenInfo.new(0.15), {Size = UDim2.fromOffset(440, 296)}):Play()
 		task.wait(0.15)
+		if isDestroyed then return end
 		DashboardOverlay.Visible = false
 	end
 
-	DashboardOverlay:GetPropertyChangedSignal("Visible"):Connect(function()
+	Track(DashboardOverlay:GetPropertyChangedSignal("Visible"):Connect(function()
 		if not DashboardOverlay.Visible then
 			StopAllTelemetry()
 		else
 			UpdateColors()
 		end
-	end)
+	end))
 
-	ProfileButton.MouseButton1Click:Connect(OpenDashboard)
-	DashClose.MouseButton1Click:Connect(CloseDashboard)
+	Track(ProfileButton.MouseButton1Click:Connect(OpenDashboard))
+	Track(DashClose.MouseButton1Click:Connect(CloseDashboard))
 
-	DashboardOverlay.MouseButton1Click:Connect(function()
+	Track(DashboardOverlay.MouseButton1Click:Connect(function()
 		local mouse = UserInputService:GetMouseLocation()
 		local cardPos = DashboardCard.AbsolutePosition
 		local cardSize = DashboardCard.AbsoluteSize
@@ -1097,7 +1116,7 @@ local function CustomizeLibrary(Window)
 		end
 
 		CloseDashboard()
-	end)
+	end))
 
 	local function FindVisualTargetByText(root, itemName, itemType)
 		if not root then return end
@@ -1137,7 +1156,7 @@ local function CustomizeLibrary(Window)
 	end
 
 	local function ScrollToTargetCentered(target)
-		if not target then return end
+		if isDestroyed or not target then return end
 		target = PickFlashTarget(target)
 		if not target then return end
 
@@ -1186,13 +1205,14 @@ local function CustomizeLibrary(Window)
 
 		sf.CanvasPosition = Vector2.new(sf.CanvasPosition.X, desiredY)
 
-		task.spawn(function()
+		SpawnTask(function()
 			for _ = 1, 3 do
-				if not overlay.Parent then break end
+				if isDestroyed or not overlay.Parent then break end
 				local t1 = TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0})
 				t1:Play()
 				t1.Completed:Wait()
 				task.wait(0.04)
+				if isDestroyed or not overlay.Parent then break end
 				local t2 = TweenService:Create(stroke, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1})
 				t2:Play()
 				t2.Completed:Wait()
@@ -1211,6 +1231,7 @@ local function CustomizeLibrary(Window)
 	end
 
 	local function UpdateSearchResults()
+		if isDestroyed then return end
 		local query = SpotInput.Text:lower()
 		for _, v in pairs(SpotResults:GetChildren()) do
 			if v:IsA("TextButton") then v:Destroy() end
@@ -1316,24 +1337,25 @@ local function CustomizeLibrary(Window)
 					ZIndex = 10006
 				})
 
-				task.delay(0, function()
+				DelayTask(0, function()
+					if isDestroyed or not TitleLabel.Parent then return end
 					local tW = TitleLabel.AbsoluteSize.X
 					Dot.Position = UDim2.new(0, 32 + tW + 5, 0, 0)
 					TabLabel.Position = UDim2.new(0, 32 + tW + 15, 0, 0)
 				end)
 
-				btn.MouseEnter:Connect(function()
+				Track(btn.MouseEnter:Connect(function()
 					btn:SetAttribute("Hovering", true)
 					TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.95}):Play()
 					TweenService:Create(btnStroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
-				end)
-				btn.MouseLeave:Connect(function()
+				end))
+				Track(btn.MouseLeave:Connect(function()
 					btn:SetAttribute("Hovering", false)
 					TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
 					TweenService:Create(btnStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
-				end)
+				end))
 
-				btn.MouseButton1Click:Connect(function()
+				Track(btn.MouseButton1Click:Connect(function()
 					local sectionName = item.Section and tostring(item.Section):lower()
 					if sectionName and SectionExpandersByTitle[sectionName] then
 						SectionExpandersByTitle[sectionName]()
@@ -1346,6 +1368,7 @@ local function CustomizeLibrary(Window)
 					CloseSpotlight()
 
 					task.wait(0.1)
+					if isDestroyed then return end
 					RunService.RenderStepped:Wait()
 					RunService.RenderStepped:Wait()
 
@@ -1353,7 +1376,7 @@ local function CustomizeLibrary(Window)
 
 					RunService.RenderStepped:Wait()
 					ScrollToElement(item.Name, item.Frame, item.Type)
-				end)
+				end))
 			end
 		end
 
@@ -1374,15 +1397,15 @@ local function CustomizeLibrary(Window)
 	end
 
 	local searchToken = 0
-	SpotInput:GetPropertyChangedSignal("Text"):Connect(function()
+	Track(SpotInput:GetPropertyChangedSignal("Text"):Connect(function()
 		searchToken += 1
 		local token = searchToken
-		task.delay(0.08, function()
-			if token == searchToken and SpotlightOverlay.Visible then
+		DelayTask(0.08, function()
+			if token == searchToken and SpotlightOverlay.Visible and not isDestroyed then
 				UpdateSearchResults()
 			end
 		end)
-	end)
+	end))
 
 	Track(RootFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		if SpotlightOverlay.Visible then
@@ -1390,7 +1413,7 @@ local function CustomizeLibrary(Window)
 		end
 	end))
 
-	SearchTab.MouseButton1Click:Connect(function()
+	Track(SearchTab.MouseButton1Click:Connect(function()
 		UpdateColors()
 		local isMax = Window.Maximized or false
 		local widthScale = isMax and 0.88 or 0.85
@@ -1401,7 +1424,7 @@ local function CustomizeLibrary(Window)
 		TweenService:Create(SpotlightOverlay, TweenInfo.new(0.2), {BackgroundTransparency = 0.4}):Play()
 		SpotInput:CaptureFocus()
 		UpdateSearchResults()
-	end)
+	end))
 
 	local CloseBtn = Create("TextButton", {
 		Parent = SpotlightOverlay,
@@ -1410,16 +1433,11 @@ local function CustomizeLibrary(Window)
 		Text = "",
 		ZIndex = 199
 	})
-	CloseBtn.MouseButton1Click:Connect(CloseSpotlight)
+	Track(CloseBtn.MouseButton1Click:Connect(CloseSpotlight))
 end
 
 local function HookWindow(Window)
-	if not Window or type(Window) ~= "table" then return Window end
-	
-	if Window.__SearchHooked and Window.Root then
-		pcall(function() Window.Root:Destroy() end)
-	end
-	
+	if not Window or type(Window) ~= "table" or Window.__SearchHooked then return Window end
 	Window.__SearchHooked = true
 
 	local OriginalAddTab = Window.AddTab
@@ -1431,25 +1449,6 @@ local function HookWindow(Window)
 	local TabSectionByIndex = {}
 	local TabSectionByObject = {}
 	local SelectorCache = nil
-
-	if Window.Root then
-		Window.Root.Destroying:Connect(function()
-			for _, cb in ipairs(DestroyCallbacks) do pcall(cb) end
-			DisconnectTracked()
-			table.clear(SearchIndex)
-			table.clear(AllSectionTitles)
-			table.clear(SectionExpandersByTitle)
-			table.clear(AllCreatedTabSections)
-			table.clear(SidebarOrder)
-			table.clear(TabButtonsOnly)
-			table.clear(TabButtonByTab)
-			table.clear(TabSectionByButton)
-			SelectorCache = nil
-			CurrentActiveButton = nil
-			CurrentActiveSection = nil
-			if Library.CurrentWindow == Window then Library.CurrentWindow = nil end
-		end)
-	end
 
 	local function FindSelector()
 		if SelectorCache and SelectorCache.Parent then return SelectorCache end
@@ -1483,6 +1482,7 @@ local function HookWindow(Window)
 	end
 
 	local function UpdateSectionHighlights()
+		if isDestroyed then return end
 		local brightness = (TargetTextColor.R + TargetTextColor.G + TargetTextColor.B) / 3
 		local isDark = (brightness > 0.5)
 		local dimColor = isDark and Color3.fromRGB(160, 160, 160) or Color3.fromRGB(110, 110, 110)
@@ -1507,6 +1507,7 @@ local function HookWindow(Window)
 	Window.UpdateSectionHighlights = UpdateSectionHighlights
 
 	Window.SyncSelector = function()
+		if isDestroyed then return end
 		local sel = FindSelector()
 		if not sel then return end
 
@@ -1632,13 +1633,13 @@ local function HookWindow(Window)
 						CurrentActiveSection = targetSec
 					end
 
-					c.MouseButton1Click:Connect(function()
+					Track(c.MouseButton1Click:Connect(function()
 						CurrentActiveButton = c
 						CurrentActiveSection = targetSec
 						local sel = FindSelector()
 						if sel then sel.Visible = true end
 						UpdateSectionHighlights()
-					end)
+					end))
 					break
 				end
 			end
@@ -1734,16 +1735,16 @@ local function HookWindow(Window)
 				UpdateSectionHighlights()
 			end
 
-			trigger.MouseButton1Click:Connect(function() sec.Set(not sec.Expanded) end)
-			trigger.MouseEnter:Connect(function()
+			Track(trigger.MouseButton1Click:Connect(function() sec.Set(not sec.Expanded) end))
+			Track(trigger.MouseEnter:Connect(function()
 				sectionLabel:SetAttribute("Hovering", true)
 				TweenService:Create(sectionLabel, TweenInfo.new(0.15), {TextColor3 = TargetTextColor}):Play()
 				TweenService:Create(arrow, TweenInfo.new(0.15), {ImageColor3 = TargetTextColor}):Play()
-			end)
-			trigger.MouseLeave:Connect(function()
+			end))
+			Track(trigger.MouseLeave:Connect(function()
 				sectionLabel:SetAttribute("Hovering", false)
 				UpdateSectionHighlights()
-			end)
+			end))
 
 			table.insert(AllCreatedTabSections, sec)
 			CurrentSidebarSection = sec
@@ -1767,8 +1768,9 @@ local function HookWindow(Window)
 		Window.CreateTabSection = Window.AddTabSection
 	end
 
-	task.spawn(function()
+	SpawnTask(function()
 		task.wait(0.1)
+		if isDestroyed then return end
 		pcall(function()
 			local ScreenGui = Window.Root and Window.Root:FindFirstAncestorWhichIsA("ScreenGui")
 			if ScreenGui then
@@ -1827,7 +1829,8 @@ local function HookWindow(Window)
 
 			local overlay = Root and Root:FindFirstChild("SpotlightOverlay")
 			if overlay and overlay.Visible then
-				task.defer(function()
+				DeferTask(function()
+					if isDestroyed then return end
 					local spotResults = overlay:FindFirstChild("SpotResults", true)
 					if spotResults then
 						local count = 0
@@ -1884,7 +1887,7 @@ local function HookWindow(Window)
 		local startPointer = Vector2.zero
 		local startPos = Root.Position
 
-		DragHandle.InputBegan:Connect(function(input)
+		Track(DragHandle.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
@@ -1893,18 +1896,18 @@ local function HookWindow(Window)
 			startPointer = PointerToGui(input)
 			startPos = Root.Position
 			local endConn
-			endConn = input.Changed:Connect(function()
+			endConn = Track(input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
 					dragInputObj = nil
 					pcall(function() Window.Position = Root.Position end)
 					endConn:Disconnect()
 				end
-			end)
-		end)
+			end))
+		end))
 
 		Track(UserInputService.InputChanged:Connect(function(input)
-			if not dragging then return end
+			if not dragging or isDestroyed then return end
 			local isMove = input.UserInputType == Enum.UserInputType.MouseMovement
 			local isTouch = input.UserInputType == Enum.UserInputType.Touch and input == dragInputObj
 			if not (isMove or isTouch) then return end
@@ -1955,17 +1958,53 @@ local function HookWindow(Window)
 		end))
 	end
 
-	task.spawn(function()
+	SpawnTask(function()
 		task.wait(0.1)
-		CustomizeLibrary(Window)
+		if not isDestroyed then
+			CustomizeLibrary(Window)
+		end
 	end)
 
-	loadingActive = false
-	if LoadingGui then
-		LoadingGui:Destroy()
+	if Window.Root then
+		Track(Window.Root.Destroying:Connect(function()
+			Cleanup()
+		end))
+	end
+
+	local oldWindowDestroy = Window.Destroy
+	Window.Destroy = function(self, ...)
+		Cleanup()
+		if oldWindowDestroy then
+			return oldWindowDestroy(self, ...)
+		end
 	end
 
 	return Window
+end
+
+Cleanup = function()
+	if isDestroyed then return end
+	isDestroyed = true
+
+	for _, cb in ipairs(DestroyCallbacks) do 
+		pcall(cb) 
+	end
+	table.clear(DestroyCallbacks)
+
+	DisconnectTracked()
+	CancelAllThreads()
+
+	table.clear(SearchIndex)
+	table.clear(AllSectionTitles)
+	table.clear(SectionExpandersByTitle)
+	table.clear(AllCreatedTabSections)
+	table.clear(TabButtonsOnly)
+	table.clear(TabButtonByTab)
+	table.clear(TabSectionByButton)
+
+	if Library.CurrentWindow then
+		Library.CurrentWindow = nil
+	end
 end
 
 Library.CreateWindow = function(self, ...)
@@ -1984,8 +2023,24 @@ if OriginalWindowCtor then
 	end
 end
 
+local oldLibDestroy = Library.Destroy
+Library.Destroy = function(self, ...)
+	Cleanup()
+	if oldLibDestroy then
+		return oldLibDestroy(self, ...)
+	end
+end
+
+if Library.Unload then
+	local oldUnload = Library.Unload
+	Library.Unload = function(self, ...)
+		Cleanup()
+		return oldUnload(self, ...)
+	end
+end
+
 local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "GlobalScriptToggleGui"
+toggleGui.Name = "DuckyToggleGui"
 toggleGui.ResetOnSpawn = false
 toggleGui.DisplayOrder = 100
 toggleGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
@@ -2005,58 +2060,54 @@ toggleBtn.Active = true
 local dragging, dragInput, mousePos, framePos
 local dragMoved = false
 
-toggleBtn.InputBegan:Connect(function(input)
+Track(toggleBtn.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragMoved = false
 		mousePos = input.Position
 		framePos = toggleBtn.Position
 		local endConn
-		endConn = input.Changed:Connect(function()
+		endConn = Track(input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
 				endConn:Disconnect()
 			end
-		end)
+		end))
 	end
-end)
+end))
 
-toggleBtn.InputChanged:Connect(function(input)
+Track(toggleBtn.InputChanged:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-end)
+end))
 
 Track(UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
+	if input == dragInput and dragging and not isDestroyed then
 		local delta = input.Position - mousePos
 		if delta.Magnitude > 6 then dragMoved = true end
 		toggleBtn.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
 	end
 end))
 
-toggleBtn.MouseButton1Down:Connect(function()
+Track(toggleBtn.MouseButton1Down:Connect(function()
 	TweenService:Create(toggleBtn, TweenInfo.new(0.1), {Size = pressedSize, ImageColor3 = Color3.fromRGB(200, 200, 255)}):Play()
-end)
+end))
 
-toggleBtn.MouseButton1Up:Connect(function()
+Track(toggleBtn.MouseButton1Up:Connect(function()
 	TweenService:Create(toggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Size = normalSize, ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-end)
+end))
 
-toggleBtn.Activated:Connect(function()
+Track(toggleBtn.Activated:Connect(function()
 	if dragMoved then
 		dragMoved = false
 		return
 	end
 	if Library.CurrentWindow then Library.CurrentWindow:Minimize() end
-end)
+end))
 
 table.insert(DestroyCallbacks, function()
 	if toggleGui then
 		toggleGui:Destroy()
 		toggleGui = nil
-	end
-	if LoadingGui then
-		LoadingGui:Destroy()
-		LoadingGui = nil
 	end
 end)
 
