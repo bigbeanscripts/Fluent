@@ -1,8 +1,3 @@
---[[
-    Fluent-Renewed Extension & Customization
-    Author / Modification: bigbeanscripta
-]]
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -11,6 +6,52 @@ local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
 local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
+
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "GlobalScriptLoadingGui"
+LoadingGui.ResetOnSpawn = false
+LoadingGui.DisplayOrder = 999999
+LoadingGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
+
+local LoadingCard = Instance.new("Frame")
+LoadingCard.Name = "LoadingCard"
+LoadingCard.Parent = LoadingGui
+LoadingCard.AnchorPoint = Vector2.new(0.5, 0)
+LoadingCard.Position = UDim2.new(0.5, 0, 0, 15)
+LoadingCard.Size = UDim2.fromOffset(210, 42)
+LoadingCard.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
+LoadingCard.BorderSizePixel = 0
+
+local CardCorner = Instance.new("UICorner", LoadingCard)
+CardCorner.CornerRadius = UDim.new(0, 8)
+
+local CardStroke = Instance.new("UIStroke")
+CardStroke.Thickness = 1
+CardStroke.Transparency = 0.7
+CardStroke.Color = Color3.fromRGB(255, 255, 255)
+CardStroke.Parent = LoadingCard
+
+local LoadingText = Instance.new("TextLabel")
+LoadingText.Name = "LoadingText"
+LoadingText.Parent = LoadingCard
+LoadingText.BackgroundTransparency = 1
+LoadingText.Size = UDim2.fromScale(1, 1)
+LoadingText.Font = Enum.Font.GothamBold
+LoadingText.TextColor3 = Color3.fromRGB(240, 240, 240)
+LoadingText.TextSize = 13
+LoadingText.Text = "Loading Interface"
+LoadingText.ZIndex = 2
+
+local loadingActive = true
+task.spawn(function()
+	local dots = {"", ".", "..", "..."}
+	local i = 1
+	while loadingActive and LoadingText and LoadingText.Parent do
+		LoadingText.Text = "Loading Interface" .. dots[i]
+		i = (i % #dots) + 1
+		task.wait(0.4)
+	end
+end)
 
 local function SafeCall(name, func, ...)
 	local success, err = pcall(func, ...)
@@ -1373,7 +1414,12 @@ local function CustomizeLibrary(Window)
 end
 
 local function HookWindow(Window)
-	if not Window or type(Window) ~= "table" or Window.__SearchHooked then return Window end
+	if not Window or type(Window) ~= "table" then return Window end
+	
+	if Window.__SearchHooked and Window.Root then
+		pcall(function() Window.Root:Destroy() end)
+	end
+	
 	Window.__SearchHooked = true
 
 	local OriginalAddTab = Window.AddTab
@@ -1914,6 +1960,11 @@ local function HookWindow(Window)
 		CustomizeLibrary(Window)
 	end)
 
+	loadingActive = false
+	if LoadingGui then
+		LoadingGui:Destroy()
+	end
+
 	return Window
 end
 
@@ -1934,7 +1985,7 @@ if OriginalWindowCtor then
 end
 
 local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "DuckyToggleGui"
+toggleGui.Name = "GlobalScriptToggleGui"
 toggleGui.ResetOnSpawn = false
 toggleGui.DisplayOrder = 100
 toggleGui.Parent = (RunService:IsStudio() and LocalPlayer:WaitForChild("PlayerGui") or CoreGui)
@@ -2002,6 +2053,10 @@ table.insert(DestroyCallbacks, function()
 	if toggleGui then
 		toggleGui:Destroy()
 		toggleGui = nil
+	end
+	if LoadingGui then
+		LoadingGui:Destroy()
+		LoadingGui = nil
 	end
 end)
 
