@@ -18,7 +18,7 @@ local function SafeCall(name, func, ...)
 end
 
 local ScriptStartTime = os.clock()
-local Library = loadstring(game:HttpGet("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau", true))()
 
 if Library and type(Library.SafeCallback) == "function" then
 	local OriginalSafeCallback = Library.SafeCallback
