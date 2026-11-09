@@ -18,7 +18,22 @@ local function SafeCall(name, func, ...)
 end
 
 local ScriptStartTime = os.clock()
-local Library = loadstring(game:HttpGetAsync("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau", true))()
+local Library
+for _ = 1, 5 do
+    local success, result = pcall(game.HttpGet, game, "https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau")
+    if success and type(result) == "string" and #result > 1000 then
+        local fn = loadstring(result)
+        if fn then
+            local val = fn()
+            if val then
+                Library = val
+                break
+            end
+        end
+    end
+    task.wait(0.5)
+end
+assert(Library, "Failed to load Fluent-Renewed Library")
 
 if Library and type(Library.SafeCallback) == "function" then
 	local OriginalSafeCallback = Library.SafeCallback
